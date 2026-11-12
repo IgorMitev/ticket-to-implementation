@@ -28,7 +28,7 @@ If the key is omitted, use the unambiguous ticket in the current conversation; o
 
 Resolve `SKILL_DIR` to this folder, the target repository, and the issue key. Read repository instructions first. Use the script's default persistent cache under `~/.cache/ticket-to-implementation/<site-host>-<api-hash>/<KEY>/`; get the exact work directory from its manifest/ticket path in stdout. An existing user-specified directory takes precedence via `--out`. Read [setup.md](references/setup.md) if setup or authentication is missing. Do not read script source into context just to run it.
 
-Use `workflow.mjs status` for concise saved state. **Only the scripts may write progress, phase status, tokens, or reconciliation markers.** Do not hand-edit `progress.json` to advance a phase or resolve a rejection. Fetching initializes state but never completes agent work. Legacy sessions are archived and migrated with phases pending; their old completion flags are not trusted.
+Use `workflow.mjs status` for concise saved state. **Only the scripts may write progress, phase status, tokens, or reconciliation markers.** Do not hand-edit `progress.json` to advance a phase or resolve a rejection. Fetching initializes state but never completes agent work. Older unsupported sessions are archived; schema 6 bug/mixed investigations and later phases reopen for the mandatory reproduction gate. Feature-only schema 6 progress is preserved. Do not trust old bug completion flags or continue an active worker after invalidation.
 
 ```sh
 node "$SKILL_DIR/scripts/prepare-ticket.mjs" ABC-123
@@ -58,15 +58,19 @@ Complete `evidence_review` with one disposition per attachment. Reviewed videos 
 
 Determine whether this is a bug, feature, or mixed request from the actual request and evidence.
 
-- **Bug:** establish baseline behavior before modifying code. Use repository setup instructions and existing local services; reproduce with the reported preconditions. Record environment, steps, expected versus actual results, and evidence in `reproduction.md`. If not reproduced, document attempts and missing conditions; do not invent success or infer the cause from the ticket alone.
+- **Bug:** local runtime reproduction is mandatory before completing investigation or changing implementation code. Reuse existing local services and browser tabs where available; otherwise follow repository setup instructions. Execute the reported sequence and capture the environment/URL, actions actually performed, expected/observed behavior, and screenshots or logs in the active artifact directory, referenced from `reproduction.md`. Ticket files and extracted ticket recordings cannot serve as local runtime evidence. Videos and code inspection guide the attempt but cannot substitute for it. Transient QA data, an uncertain setup, or a suspected obvious cause are reasons to investigate or ask for access—not permission to omit reproduction.
 - **Feature:** inspect current user flows, relevant code, reusable patterns, data contracts, permissions, and integration constraints. Record findings and likely touchpoints in `investigation.md`. There is no requirement to reproduce a nonexistent defect.
-- **Mixed:** distinguish the existing defect from the enhancement and give each observable acceptance criteria.
+- **Mixed:** apply the same mandatory local reproduction gate to the defect and give the enhancement its own acceptance criteria. Never relabel a bug as a feature to bypass reproduction.
 
 Ask for missing access, test data, repository location, or environment details as soon as they block useful work. Continue independent investigation while awaiting answers. Do not access production or perform destructive environment resets just to reproduce locally. Use the host's secure credential mechanism, never a chat request for tokens.
 
 A codebase investigator is useful only for substantial, separable exploration. A reproduction worker may run alongside independent code investigation, but assign exclusive ownership of the browser/session/server. No worker should edit overlapping files or ask the user competing questions.
 
-Complete `investigation` using the matching bug/feature/mixed schema. Unreproduced or blocked bugs need an explicit `not_reproduced` exception. These exceptions must be resolved, justified as immaterial, or explicitly accepted by the user during clarification before implementation.
+Complete `investigation` only after local reproduction succeeds or the user explicitly approves proceeding without it. Both an unsuccessful local attempt and inability to attempt require permission; do not turn `not_reproduced` into an agent-owned skip.
+
+If reproduction remains unsuccessful/blocked, record attempts or setup blockers, evidence, the precise limitation and alternative verification plan. Use `request-reproduction-waiver` as described in [workflow.md](references/workflow.md); it freezes those circumstances and blocks investigation. Ask concisely: **“May I proceed without local reproduction for this ticket?”** Include the limitation and alternative. Wait for an explicit answer. Silence, general implementation approval, previous answers, or marking the omission `not_material` do not authorize it.
+
+After explicit approval, resume investigation and submit the unchanged request with the matching waiver ID and actual response. If denied, continue reproduction or remain blocked. Changed access/data/environment, new evidence, or scope changes require invalidating investigation and reassessing reproduction; an old waiver cannot cover a new limitation. Include the approved omission visibly in the later implementation summary and handoff. It does not waive post-fix verification or the separate approval of requirements. Verification must carry out the exact approved alternative plan and record the actions/results with fresh evidence; if this is impossible, remain blocked and seek a revised agreement.
 
 ## Clarify and align
 

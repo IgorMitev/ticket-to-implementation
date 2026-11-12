@@ -22,7 +22,7 @@ export async function session(action, key, options = {}, { env = process.env } =
     const manifest = await json(join(out, 'manifest.json'));
     let progress = await json(join(out, 'progress.json'));
     if (progress.issue_key !== manifest.issue_key || !progress.phases) throw new Error('Saved progress is invalid or belongs to another ticket; inspect it before continuing');
-    if (progress.version > 6) throw new Error('Saved workflow uses a newer schema; use a newer skill version');
+    if (progress.version > 7) throw new Error('Saved workflow uses a newer schema; use a newer skill version');
     let archive = null;
     if (action === 'reset') {
       // Preserve the prior artifact directory and archive its state before atomically
@@ -35,7 +35,7 @@ export async function session(action, key, options = {}, { env = process.env } =
         evidence_snapshot_at_reset: manifest.snapshot_sha256,
       });
       const userScope = progress.user_scope ?? null;
-      const config = progress.version === 6 ? progress.config ?? null : null;
+      const config = [6, 7].includes(progress.version) ? progress.config ?? null : null;
       progress = await newProgress(manifest.issue_key, out);
       progress.user_scope = userScope;
       progress.config = config;
@@ -53,7 +53,7 @@ export async function session(action, key, options = {}, { env = process.env } =
       evidence_fetched_at: manifest.fetched_at, evidence_status: manifest.status, refresh_warning: manifest.refresh_warning ?? null,
       snapshot_changed: progress.reconciled_snapshot !== manifest.snapshot_sha256,
       phases: status.phases, next_phase: status.next_phase, done: status.done, outcome: status.outcome, exceptions: status.exceptions,
-      assignment: status.assignment, proposal: status.proposal, phase_token: status.phase_token, next_action: status.next_action, archive,
+      reproduction_request: status.reproduction_request, assignment: status.assignment, proposal: status.proposal, phase_token: status.phase_token, next_action: status.next_action, archive,
     };
   } finally { await release(); }
 }

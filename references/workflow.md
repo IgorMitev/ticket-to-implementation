@@ -15,7 +15,7 @@ node "$SKILL_DIR/scripts/workflow.mjs" complete ABC-123 --out "$WORK_DIR" --phas
 
 Repeat `start` and `complete` for the returned next phase. For clarification, use the mandatory presentation/approval sequence below before `complete`. `start` returns a `phase_token`; put it in the result. Repeating `start` on the same in-progress phase returns the same token. Resuming a blocked phase returns a new token and keeps its unanswered questions. Stale tokens are rejected.
 
-Actions: `configure`, `status`, `start`, `assert`, `block`, `present`, `handoff`, `check-worker`, `record-check`, `complete`, `invalidate`. Exit 0 means the command succeeded (not necessarily the task is complete); exit 1 means it failed. Workflow/session exit 3 with `LOCK_BUSY` means bounded lock retries were exhausted; retry later without resetting or replacing a worker. Stdout is a compact JSON status. A rejected transition still persists automatic invalidations found before that transition.
+Actions: `configure`, `status`, `start`, `assert`, `block`, `present`, `request-reproduction-waiver`, `handoff`, `check-worker`, `record-check`, `complete`, `invalidate`. Exit 0 means the command succeeded (not necessarily the task is complete); exit 1 means it failed. Workflow/session exit 3 with `LOCK_BUSY` means bounded lock retries were exhausted; retry later without resetting or replacing a worker. Stdout is a compact JSON status. A rejected transition still persists automatic invalidations found before that transition.
 
 The phases are `evidence_review`, `investigation`, `clarification`, `implementation`, `verification`. Script-generated evidence preparation is the prerequisite represented by `manifest.json`; it is not an agent-set completion flag. Scope `review` ends after investigation; `clarify` ends after clarification; `implement` requires all five phases. Later phases are reported as `not_applicable_to_scope`. No generic skip/force-complete action exists.
 
@@ -30,7 +30,7 @@ Configuration (`request.json`):
 }
 ```
 
-Kinds: `bug`, `feature`, `mixed`. Preserve the user's actual request and restrictions in `user_request`. Approval of the specific presented summary is always required before completing clarification, and material unresolved questions require answers. The legacy `requires_user_confirmation` option can be omitted or true; false is rejected. Reconfiguring a changed kind/scope/repository/request invalidates the workflow from evidence review, so do not reconfigure merely to bypass a gate. Identical configuration is idempotent.
+Kinds: `bug`, `feature`, `mixed`. Reclassifying bug/mixed to feature additionally requires `reclassification_reason`, recorded in the event log. Explain the genuine scope correction/user instruction; do not reclassify to avoid reproduction. A first configuration, including one after migrating a schema 4 or older session, has no prior kind to compare, so choosing `feature` for a defect is unchecked; base the kind on the ticket and user request. Preserve the user's actual request and restrictions in `user_request`. Approval of the specific presented summary is always required before completing clarification, and material unresolved questions require answers. The legacy `requires_user_confirmation` option can be omitted or true; false is rejected. Reconfiguring a changed kind/scope/repository/request invalidates the workflow from evidence review, so do not reconfigure merely to bypass a gate. Identical configuration is idempotent.
 
 ## Common result fields
 
@@ -75,6 +75,9 @@ For `bug` or `mixed`, `reproduction` must include:
 ```json
 {
   "status": "reproduced",
+  "attempted_locally": true,
+  "target": "http://localhost:4200/editor",
+  "evidence": ["/absolute/ticket/workflow/current/reproduction.md", "/absolute/ticket/workflow/current/local-run.log"],
   "environment": "Local development server, test account with editor role",
   "steps": ["Open the editor", "Change the title", "Save"],
   "expected": "Dialog closes and title is saved",
@@ -82,13 +85,44 @@ For `bug` or `mixed`, `reproduction` must include:
 }
 ```
 
-Statuses `not_reproduced` and `blocked` additionally need `reason` and a `not_reproduced` exception. Record actual attempts/setup steps. A completed investigation with this exception means the investigation is documented, not that the bug was reproduced. Use `block` instead when no useful investigation result can yet be delivered.
+Local runtime reproduction is mandatory for bug/mixed investigation. `attempted_locally` must be true for `reproduced` or `not_reproduced`; use `blocked` with false when unable to run a local attempt. All three statuses need the nonempty environment/target, actual steps or setup actions, expected/actual results, and nonempty evidence paths. Reproduction evidence must resolve inside the active `artifact_directory`. Ticket text/manifests, attachment caches, extracted ticket frames and symlink aliases to them are rejected; known ticket-video directories are rejected even inside active artifacts. Capture fresh local screenshots/logs or a report of the actual setup blocker there. Do not copy ticket evidence into that directory and relabel it as a local observation. The controller hashes reproduction evidence along with report artifacts. It also rejects byte-identical copies or hard links of ticket files, attachments and extracted ticket frames (files under 16 bytes, such as an empty `[]` list, are exempt because they are too common to identify a copy), and frames in any directory whose `extract-video` manifest names a ticket attachment as its source. Extracting a local reproduction recording is allowed. It cannot infer the provenance of edited or re-encoded bytes. A custom local hostname is valid; “local” describes the runtime being exercised, not a hostname pattern. Clearly name any authorized QA backend. Do not access production to satisfy this gate.
+
+An unsuccessful or unavailable reproduction also needs `reason`, `alternative_verification`, and a `not_reproduced` exception. These fields alone cannot complete investigation.
+
+### Explicit reproduction omission waiver
+
+1. Prepare the full investigation draft (including common fields and feature analysis for mixed tickets), with reproduction evidence/limitation and alternative plan. Do not include `reproduction_waiver` yet. Resolve any recorded questions with actual answers.
+2. Run `request-reproduction-waiver` with the current investigation phase token. It validates/freezes the draft, returns `reproduction_request.id` and path, and blocks investigation. It does not ask the user or grant consent.
+3. Show the attempts/blocker and alternative, ask **“May I proceed without local reproduction for this ticket?”**, and wait for explicit permission. An original “implement this” request, generic approval of requirements or silence is insufficient.
+4. Only after permission, run `start --phase investigation` and complete using the unchanged draft, new phase token and the following `reproduction_waiver` object:
+
+```json
+{
+  "decision": "approved",
+  "scope": "proceed_without_local_reproduction",
+  "request_id": "id-returned-by-request-reproduction-waiver",
+  "user_response": "Quote or reference the actual explicit permission to omit reproduction."
+}
+```
+
+```sh
+node "$SKILL_DIR/scripts/workflow.mjs" request-reproduction-waiver ABC-123 --out "$WORK_DIR" --phase investigation --input /path/investigation-draft.json
+# Ask the user and wait; do not record an invented response.
+node "$SKILL_DIR/scripts/workflow.mjs" start ABC-123 --out "$WORK_DIR" --phase investigation
+node "$SKILL_DIR/scripts/workflow.mjs" complete ABC-123 --out "$WORK_DIR" --phase investigation --input /path/investigation-with-waiver.json
+```
+
+The waiver is tied to the exact full draft and hashed artifacts; `status`/`continue` preserve a pending request. Revisions require `invalidate --phase investigation`, reassessment and a new request/permission. A pending request cannot be replaced by another request after `start` alone. A generic `block`, reset, changed ticket or changed evidence revokes a pending waiver. If local reproduction later succeeds, invalidate investigation, record the actual result and complete without a waiver. Changed circumstances after an accepted waiver also require invalidation and fresh assessment; external access changes must be reported by the main agent because the controller cannot observe them.
+
+At clarification, carry `reproduction_waiver_id` in the summary JSON and show the omission/alternative to the user. Its `exception_decisions` entry must use `resolution: "accepted_by_user"`, `waiver_request_id`, and the same `user_response` as the accepted investigation. `not_material` and `resolved` cannot dismiss this omission; successful reproduction instead requires reopening investigation. Approval of the implementation summary remains a separate gate. Review-only requests also cannot complete bug investigation without reproduction or permission.
+
+This records declarations and evidence, not proof that a runtime action or user response was authentic. The agent must never invent either.
 
 ## Clarification
 
 Required draft fields: the common result fields, nonempty `acceptance_criteria` with unique `id`, `requirement`, and `verification`; `scope_exclusions` array; and `questions` array. Each question needs `question` and boolean `material`. Material questions need nonempty `answer` and `user_response`; an unanswered nonmaterial question needs an explicit `assumption`. The summary and referenced brief must describe the goal, behavior and scope being proposed, decisions, assumptions and material limitations.
 
-Resolve every earlier evidence/investigation exception in `exception_decisions` with `phase`, `code`, `resolution` and `reason`. Resolution is `resolved` (requires nonempty `evidence` file paths), `not_material` (reasoned scope/evidence justification), or `accepted_by_user` (requires `user_response`). Material gaps cannot be dismissed as immaterial merely to proceed.
+Resolve every earlier evidence/investigation exception in `exception_decisions` with `phase`, `code`, `resolution` and `reason`. Resolution is `resolved` (requires nonempty `evidence` file paths), `not_material` (reasoned scope/evidence justification), or `accepted_by_user` (requires `user_response`). Material gaps cannot be dismissed as immaterial merely to proceed. For bug/mixed investigations whose reproduction did not succeed, the `not_reproduced` exception has the stricter waiver rules above; generic exception resolutions cannot override them.
 
 1. Prepare the brief and draft result, without `alignment`.
 2. Run `present` to validate and freeze the proposal. It returns `proposal.id`, its hash and saved JSON path. This records a proposal ready to show; it does not send a message to the user or grant approval.
@@ -113,7 +147,7 @@ node "$SKILL_DIR/scripts/workflow.mjs" complete ABC-123 --out "$WORK_DIR" --phas
 
 This object belongs in the result's `alignment` field. Never fabricate it or use an original implementation request as approval. `clear_from_existing_instructions` is no longer accepted. Approval of individual answers does not approve the full summary. A response requesting changes requires revision and a new approval. A bare skill invocation never skips this step, even for an unambiguous ticket. Review-only scope ends before clarification; clarify-only scope ends after approval without authorizing implementation.
 
-Pending proposals remain in progress with a wait-for-approval next action. `status` and `session continue` return the proposal, so resuming does not require re-presentation when it is unchanged. Referenced artifacts and the frozen proposal are hashed; editing them invalidates clarification and downstream phases. Blocking or invalidating clarification discards its proposal. Completed approval is preserved only while its evidence and requirements remain valid. State schema 6 upgrades schema 5 by retaining valid approval and reopening implementation/verification for a handoff. Older sessions are archived and restart phase validation rather than trusting approvals made under the former optional gate.
+Pending proposals remain in progress with a wait-for-approval next action. `status` and `session continue` return the proposal, so resuming does not require re-presentation when it is unchanged. Referenced artifacts and the frozen proposal are hashed; editing them invalidates clarification and downstream phases. Blocking or invalidating clarification discards its proposal. Completed approval is preserved only while its evidence and requirements remain valid. State schema 7 reopens investigation and downstream phases for schema 6 bug/mixed sessions, requiring fresh reproduction validation or omission permission; feature-only progress is retained. Schema 5 first receives the earlier handoff migration. Older sessions are archived and restart phase validation rather than trusting approvals made under the former optional gate.
 
 ## Implementation
 
@@ -130,6 +164,18 @@ Result: `addressed_criteria` must contain exactly the agreed IDs; `changed_files
 `criteria` covers each agreed ID exactly once, with `status: "passed"`, a nonempty `result`, and nonempty `evidence` file paths. `checks` lists checks run as `{command, exit_code: 0, evidence: "/path/to/log"}`. An empty checks array requires `no_tests_reason`; manual verification still needs criterion evidence. Failed or unverified criteria/checks must block this phase instead of being submitted as complete.
 
 Bug/mixed results also include `reproduction_recheck: {status: "passed", result: "..."}`. If the original bug could not be reproduced, `status: "not_reproduced"` is permitted only with a `runtime_unverified` exception, and the acceptance criteria must still be verified by the agreed alternative. A previously reproduced bug requires a passing recheck.
+
+When investigation has an approved reproduction waiver, **every** recheck result (including `passed`) must also include:
+```json
+{
+  "alternative_verification": {
+    "plan": "Exact alternative_verification text from the approved investigation",
+    "performed": "Concrete post-fix actions actually carried out and observed results",
+    "evidence": ["/absolute/path/active-artifacts/post-fix-report.md"]
+  }
+}
+```
+This object belongs under `reproduction_recheck`. Evidence must be nonempty and satisfy the same active-session/source restrictions as reproduction evidence. It must also be new post-fix evidence: files recorded by earlier steps (baseline reproduction evidence, waiver requests, proposals, phase results, handoffs) are rejected, as are files last modified before implementation completed. Write this evidence during verification; runs made during implementation do not count. Contents are not compared, because a genuine re-run of a deterministic check can reproduce earlier bytes exactly; never copy earlier evidence to a new path to satisfy this rule. The usual code-bound receipts and acceptance-criterion checks still apply. A `runtime_unverified` exception alone cannot justify skipping verification. If the approved alternative cannot be carried out, block verification; changing that plan requires reopening investigation, a new waiver and renewed requirements approval. The controller checks the exact plan reference and evidence paths, not whether the agent's description is truthful.
 
 ## Block, resume, revise
 
@@ -156,4 +202,4 @@ A refresh that loses previously complete comments or remote links retains the pr
 
 Once the scoped workflow is complete, staging or committing unchanged covered files preserves completion. Content/mode/path changes still reopen implementation. During active implementation/verification, branch/HEAD/index changes still require revalidation.
 
-Versions newer than the supported schema are refused without replacing progress. Reset preserves configuration only for the current schema; older configs require configuration again, while original user scope remains recorded.
+Versions newer than the supported schema are refused without replacing progress. Reset preserves configuration for schemas 6 and 7; older configs require configuration again, while original user scope remains recorded.

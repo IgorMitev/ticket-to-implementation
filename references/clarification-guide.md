@@ -35,3 +35,5 @@ Only ask about these when the task makes them relevant and evidence does not ans
 Use concise sections: goal; current behavior/evidence; in scope; out of scope; decisions and their sources; numbered acceptance criteria; relevant edge cases; verification approach; unresolved questions. Criteria should describe observable outcomes, preferably with preconditions and expected results. Technical choices can remain agent-owned unless they affect product behavior, risk, or scope.
 
 If no material questions remain, record and present the brief and still wait for explicit approval of that summary. If blocked, record the exact unanswered question and which work depends on it; never treat silence as agreement.
+
+For bug/mixed tickets, local reproduction or an explicitly approved omission must already satisfy the investigation gate. Include any omission and alternative verification in the summary. General summary approval cannot substitute for specific permission to proceed without reproduction.

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtemp, mkdir, writeFile, readFile, rm, symlink, realpath } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, readFile, rm, symlink, realpath, link, copyFile, utimes } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { verify } from '../scripts/verify.mjs';
@@ -49,7 +49,28 @@ async function fixture(t, { kind = 'feature', scope = 'implement', partial = fal
   }) });
   const step = async (phase, data) => submit(phase, (await start(phase)).phase_token, data);
   const evidence = exceptions => step('evidence_review', { attachments: [], no_video_reason: 'Ticket has no video attachments', exceptions: exceptions ?? [] });
-  const investigation = (extra = {}) => step('investigation', { current_behavior: 'Feature currently absent', relevant_files: ['app.js'], feature_analysis: 'Enable behavior using existing module', constraints: [], ...(kind !== 'feature' ? { reproduction: { status: 'reproduced', environment: 'local fixture', steps: ['Run example'], expected: 'Enabled', actual: 'Disabled' } } : {}), ...extra });
+  const investigationData = async (extra = {}) => ({
+    current_behavior: 'Feature currently absent', relevant_files: ['app.js'], feature_analysis: 'Enable behavior using existing module', constraints: [],
+    ...(kind !== 'feature' ? { reproduction: { status: 'reproduced', attempted_locally: true, environment: 'local fixture', target: 'local fixture process', steps: ['Run example'], expected: 'Enabled', actual: 'Disabled', evidence: [await artifact('local-repro.log', 'Local fixture run: expected enabled, observed disabled')] } } : {}), ...extra,
+  });
+  const investigation = async (extra = {}) => step('investigation', await investigationData(extra));
+  const requestWaiver = async (extra = {}) => {
+    const phase_token = (await start('investigation')).phase_token;
+    const report = { phase_token, summary: 'Investigation findings and reproduction limitation', artifacts: [await artifact('investigation.md')], ...await investigationData(extra) };
+    const status = await call('request-reproduction-waiver', { phase: 'investigation', input: await input(report) });
+    return { report, status };
+  };
+  const approveWaiver = async (request, overrides = {}) => {
+    const phase_token = (await start('investigation')).phase_token;
+    return call('complete', { phase: 'investigation', input: await input({
+      ...request.report, phase_token, reproduction_waiver: {
+        decision: 'approved', scope: 'proceed_without_local_reproduction',
+        request_id: request.status.reproduction_request.id,
+        user_response: 'User: I approve proceeding without local reproduction for this limitation.',
+        ...overrides,
+      },
+    }) });
+  };
   const present = async (extra = {}) => {
     const phase_token = (await start('clarification')).phase_token;
     const report = { phase_token, summary: 'Enable the behavior for all roles', artifacts: [await artifact('clarification.md')],
@@ -78,7 +99,7 @@ async function fixture(t, { kind = 'feature', scope = 'implement', partial = fal
       ...(kind !== 'feature' ? { reproduction_recheck: { status: 'passed', result: 'Original steps now pass' } } : {}), ...extra,
     });
   };
-  return { root, out, repo, manifest, call, input, artifact, start, submit, step, binding, handoff, evidence, investigation, present, approve, clarification, implementation, verification };
+  return { root, out, repo, manifest, call, input, artifact, start, submit, step, binding, handoff, evidence, investigation, requestWaiver, approveWaiver, present, approve, clarification, implementation, verification };
 }
 
 test('feature workflow enforces order, acceptance criteria, and proof; then reaches completion', async t => {
@@ -139,13 +160,15 @@ test('partial evidence and unreproduced bugs require explicit exceptions and cla
   const f = await fixture(t, { kind: 'bug', partial: true });
   await assert.rejects(f.evidence(), /missing_evidence exception/);
   await f.evidence([{ code: 'missing_evidence', reason: 'Comments endpoint is unavailable' }]);
-  const reproduction = { status: 'not_reproduced', environment: 'Local test instance', steps: ['Run original steps'], expected: 'Enabled', actual: 'Already enabled', reason: 'Different data' };
+  const reproduction = { status: 'not_reproduced', attempted_locally: true, target: 'local fixture process', evidence: [await f.artifact('attempt.log', 'Local attempt did not show reported bug')], alternative_verification: 'Regression test with recorded fixture data', environment: 'Local test instance', steps: ['Run original steps'], expected: 'Enabled', actual: 'Already enabled', reason: 'Different data' };
   await assert.rejects(f.investigation({ reproduction }), /not_reproduced exception/);
-  await f.investigation({ reproduction, exceptions: [{ code: 'not_reproduced', reason: 'Missing production-specific fixture' }] });
+  await assert.rejects(f.investigation({ reproduction, exceptions: [{ code: 'not_reproduced', reason: 'Missing production-specific fixture' }] }), /explicit user waiver/);
+  const waiver = await f.requestWaiver({ reproduction, exceptions: [{ code: 'not_reproduced', reason: 'Missing production-specific fixture' }] });
+  await f.approveWaiver(waiver);
   await assert.rejects(f.clarification(), /Resolve evidence_review/);
-  await f.clarification({ exception_decisions: [
+  await f.clarification({ reproduction_waiver_id: waiver.status.reproduction_request.id, exception_decisions: [
     { phase: 'evidence_review', code: 'missing_evidence', resolution: 'not_material', reason: 'Description contains the complete requested change' },
-    { phase: 'investigation', code: 'not_reproduced', resolution: 'accepted_by_user', reason: 'User wants defensive fix verified by a regression test', user_response: 'Proceed with the regression test.' },
+    { phase: 'investigation', code: 'not_reproduced', resolution: 'accepted_by_user', reason: 'User wants defensive fix verified by a regression test', waiver_request_id: waiver.status.reproduction_request.id, user_response: 'User: I approve proceeding without local reproduction for this limitation.' },
   ] });
   assert.equal((await f.start('implementation')).next_phase, 'implementation');
 });
@@ -384,7 +407,7 @@ test('workflow lock contention retries without revoking the worker and has a dis
 
 test('future schemas are refused unchanged and legacy reset drops unvalidated configuration', async t => {
   const f = await fixture(t), path = join(f.out, 'progress.json');
-  const p = await json(path); p.version = 7; await writeFile(path, JSON.stringify(p));
+  const p = await json(path); p.version = 8; await writeFile(path, JSON.stringify(p));
   const before = await readFile(path, 'utf8');
   await assert.rejects(f.call('status'), /newer schema/);
   await assert.rejects(session('reset', 'APP-1', { out: f.out }, { env: {} }), /newer schema/);
@@ -511,5 +534,206 @@ test('failed verification CLI prints its log and receipt paths with nonzero exit
     assert.equal(result.exit_code, 9);
     assert.match(await readFile(result.log, 'utf8'), /failure detail/);
     assert.equal((await json(result.receipt)).exit_code, 9);
+  }
+});
+
+async function omission(f, status = 'blocked') {
+  return {
+    reproduction: { status, attempted_locally: status !== 'blocked', environment: 'Local dev server with QA backend',
+      target: 'http://localhost:4200/live', steps: status === 'blocked' ? ['Inspected local setup and existing services; QA credentials unavailable'] : ['Opened the local app', 'Ran the reported tennis sequence'],
+      expected: 'Correct league count', actual: status === 'blocked' ? 'Runtime attempt unavailable' : 'Count did not spike during local attempt',
+      reason: 'Required transient QA data unavailable', alternative_verification: 'Regression test with fixture counts, followed by local recheck when access returns',
+      evidence: [await f.artifact('repro-attempt.md', 'Observed setup or runtime result with exact local target and missing data')],
+    },
+    exceptions: [{ code: 'not_reproduced', reason: 'Local reproduction not established' }],
+  };
+}
+
+for (const kind of ['bug', 'mixed']) {
+  test(kind + ' investigation requires local evidence or a separately requested user waiver', async t => {
+    const f = await fixture(t, { kind }); await f.evidence();
+    const data = await omission(f);
+    await assert.rejects(f.investigation(data), /explicit user waiver/);
+    await assert.rejects(f.investigation({ reproduction: { ...data.reproduction, status: 'reproduced' } }), /actual local runtime attempt/);
+    await assert.rejects(f.investigation({ reproduction: { ...data.reproduction, status: 'reproduced', attempted_locally: true, evidence: [] } }), /concrete evidence/);
+    const requested = await f.requestWaiver(data);
+    assert.equal(requested.status.phases.investigation, 'blocked');
+    await assert.rejects(f.start('clarification'), /Earlier required phases/);
+    await assert.rejects(f.start('implementation'), /Earlier required phases/);
+    const resumed = await session('continue', 'APP-1', { out: f.out }, { env: {} });
+    assert.equal(resumed.reproduction_request.id, requested.status.reproduction_request.id);
+    await assert.rejects(f.approveWaiver(requested, { scope: 'implement_ticket' }), /explicitly approve proceeding/);
+    await assert.rejects(f.approveWaiver(requested, { user_response: '' }), /user_response/);
+    await assert.rejects(f.approveWaiver(requested, { decision: 'denied' }), /explicitly approve proceeding/);
+    await f.approveWaiver(requested);
+    const id = requested.status.reproduction_request.id;
+    const response = 'User: I approve proceeding without local reproduction for this limitation.';
+    await assert.rejects(f.clarification({ reproduction_waiver_id: id, exception_decisions: [{ phase: 'investigation', code: 'not_reproduced', resolution: 'not_material', reason: 'Transient data' }] }), /cannot be marked/);
+    await assert.rejects(f.clarification({ reproduction_waiver_id: id, exception_decisions: [{ phase: 'investigation', code: 'not_reproduced', resolution: 'resolved', reason: 'Static inspection is enough', evidence: data.reproduction.evidence }] }), /cannot be marked/);
+    const decision = { phase: 'investigation', code: 'not_reproduced', resolution: 'accepted_by_user', reason: 'Specific omission approved', waiver_request_id: id, user_response: response };
+    await assert.rejects(f.clarification({ exception_decisions: [decision] }), /summary must explicitly reference/);
+    await f.clarification({ reproduction_waiver_id: id, exception_decisions: [decision] });
+    const h = await f.handoff();
+    const packet = await json(h.assignment.path);
+    assert.equal(packet.investigation.reproduction_waiver.request_id, id);
+    assert.equal(packet.investigation.reproduction.attempted_locally, false);
+    await f.implementation();
+    await assert.rejects(f.verification({ reproduction_recheck: undefined }), /reproduction_recheck/);
+    await assert.rejects(f.verification({ reproduction_recheck: { status: 'not_reproduced', result: 'skipped' }, exceptions: [{ code: 'runtime_unverified', reason: 'Agent skipped runtime checks' }] }), /exact user-approved/);
+    await assert.rejects(f.verification({ reproduction_recheck: { status: 'passed', result: 'skipped' } }), /exact user-approved/);
+    const alternative = { plan: data.reproduction.alternative_verification, performed: 'Ran the agreed count regression with fixture data; local recheck remains conditional on access returning', evidence: [await f.artifact('post-fix-alternative.md', 'Post-fix fixture regression result and remaining runtime limitation')] };
+    await assert.rejects(f.verification({ reproduction_recheck: { status: 'not_reproduced', result: 'Regression passed', alternative_verification: { ...alternative, plan: 'Different test plan' } } }), /exact user-approved/);
+    await assert.rejects(f.verification({ reproduction_recheck: { status: 'not_reproduced', result: 'Regression passed', alternative_verification: { ...alternative, evidence: [] } } }), /concrete post-fix/);
+    const progress = await json(join(f.out, 'progress.json'));
+    for (const stale of [data.reproduction.evidence[0], requested.status.reproduction_request.path, progress.phases.investigation.result_file]) {
+      await assert.rejects(f.verification({ reproduction_recheck: { status: 'not_reproduced', result: 'Regression passed', alternative_verification: { ...alternative, evidence: [stale] } }, exceptions: [{ code: 'runtime_unverified', reason: 'Original environment still unavailable' }] }), /recorded by earlier steps/);
+    }
+    const old = await f.artifact('pre-fix-notes.md', 'Notes written before the fix');
+    await utimes(old, new Date(Date.parse(progress.phases.implementation.completed_at) - 60000), new Date(Date.parse(progress.phases.implementation.completed_at) - 60000));
+    await assert.rejects(f.verification({ reproduction_recheck: { status: 'not_reproduced', result: 'Regression passed', alternative_verification: { ...alternative, evidence: [old] } }, exceptions: [{ code: 'runtime_unverified', reason: 'Original environment still unavailable' }] }), /after implementation completed/);
+    const rerun = await f.artifact('post-fix-rerun.md', await readFile(data.reproduction.evidence[0]));
+    const done = await f.verification({ reproduction_recheck: { status: 'not_reproduced', result: 'Runtime remains unavailable; agreed regression tests passed', alternative_verification: { ...alternative, evidence: [...alternative.evidence, rerun] } }, exceptions: [{ code: 'runtime_unverified', reason: 'Original environment still unavailable' }] });
+    assert.equal(done.outcome, 'complete_with_exceptions');
+  });
+}
+
+test('unsuccessful local attempts still need permission to proceed, tied to exact limitation', async t => {
+  const f = await fixture(t, { kind: 'bug' }); await f.evidence();
+  const data = await omission(f, 'not_reproduced');
+  await assert.rejects(f.investigation(data), /explicit user waiver/);
+  const first = await f.requestWaiver(data);
+  await assert.rejects(f.approveWaiver({ ...first, report: { ...first.report, reproduction: { ...first.report.reproduction, reason: 'Different environment and limitation' } } }), /circumstances changed/);
+  await f.call('invalidate', { phase: 'investigation', reason: 'Access conditions changed; reassess reproduction' });
+  const second = await f.requestWaiver(data);
+  await assert.rejects(f.approveWaiver(second, { request_id: first.status.reproduction_request.id }), /Stale or missing/);
+  await f.approveWaiver(second);
+});
+
+test('changed evidence, ticket refresh, block and reset revoke pending reproduction waivers', async t => {
+  for (const event of ['evidence', 'ticket', 'block', 'reset']) {
+    const f = await fixture(t, { kind: 'bug' }); await f.evidence();
+    const data = await omission(f), request = await f.requestWaiver(data);
+    if (event === 'evidence') await writeFile(data.reproduction.evidence[0], 'New evidence changes the limitation');
+    if (event === 'ticket') { f.manifest.snapshot_sha256 = 'changed'; await writeFile(join(f.out, 'manifest.json'), JSON.stringify(f.manifest)); }
+    if (event === 'block') await f.call('block', { phase: 'investigation', reason: 'Different blocker' });
+    if (event === 'reset') await session('reset', 'APP-1', { out: f.out }, { env: {} });
+    assert.equal((await f.call('status')).reproduction_request, null);
+    await assert.rejects(f.approveWaiver(request), /Earlier required phases|explicit user waiver/);
+  }
+});
+
+test('schema 6 reopens bug investigation but preserves completed feature work', async t => {
+  for (const kind of ['bug', 'feature']) {
+    const f = await fixture(t, { kind }); await f.evidence(); await f.investigation(); await f.clarification();
+    const path = join(f.out, 'progress.json'), p = await json(path);
+    p.version = 6;
+    await writeFile(path, JSON.stringify(p));
+    const status = await f.call('status');
+    assert.equal(status.next_phase, kind === 'bug' ? 'investigation' : 'implementation');
+    assert.equal(status.phases.evidence_review, 'complete');
+    assert.equal(status.phases.clarification, kind === 'bug' ? 'pending' : 'complete');
+    assert.equal((await json(path)).version, 7);
+  }
+});
+
+test('local reproduction rejects ticket/cache evidence and symlink aliases', async t => {
+  const f = await fixture(t, { kind: 'bug' }); await f.evidence();
+  const cached = join(f.out, 'evidence'); await mkdir(cached);
+  const frame = join(cached, 'frame.png'); await writeFile(frame, 'ticket video frame');
+  const attachmentDir = join(f.out, 'attachments'); await mkdir(attachmentDir);
+  const attachment = join(attachmentDir, 'screenshot.png'); await writeFile(attachment, 'Jira attachment');
+  const alias = await f.artifact('alias.png'); await rm(alias); await symlink(frame, alias);
+  for (const path of [join(f.out, 'ticket.md'), join(f.out, 'manifest.json'), frame, attachment, alias]) {
+    await assert.rejects(f.investigation({ reproduction: {
+      status: 'reproduced', attempted_locally: true, environment: 'local', target: 'localhost', steps: ['Watched ticket video'],
+      expected: 'Correct count', actual: 'Incorrect count', evidence: [path],
+    } }), /active artifact_directory/);
+  }
+  await f.investigation();
+});
+
+test('ticket videos extracted inside active artifacts are still not local reproduction evidence', async t => {
+  const f = await fixture(t, { kind: 'bug' });
+  const p = await json(join(f.out, 'progress.json'));
+  const directory = join(p.artifact_directory, 'ticket-video'); await mkdir(directory);
+  const frame = join(directory, 'frame.png'); await writeFile(frame, 'ticket frame');
+  const manifest = join(directory, 'manifest.json'); await writeFile(manifest, '{}');
+  f.manifest.attachments = [{ id: '1', status: 'downloaded', is_video: true, video: { status: 'prepared', directory, manifest } }];
+  await writeFile(join(f.out, 'manifest.json'), JSON.stringify(f.manifest));
+  await f.step('evidence_review', { attachments: [{ id: '1', disposition: 'not_relevant', reason: 'Fixture' }], exceptions: [{ code: 'missing_evidence', reason: 'Fixture recording excluded' }] });
+  await assert.rejects(f.investigation({ reproduction: { status: 'reproduced', attempted_locally: true, environment: 'local', target: 'localhost', steps: ['Watched ticket frame'], expected: 'Correct count', actual: 'Wrong count', evidence: [frame] } }), /Extracted ticket video/);
+});
+
+test('copies and hard links of ticket content or ticket-video extractions are not local evidence', async t => {
+  const f = await fixture(t, { kind: 'bug' });
+  const attachmentDir = join(f.out, 'attachments'); await mkdir(attachmentDir);
+  const attachment = join(attachmentDir, '1-screen.png'); await writeFile(attachment, 'Jira attachment bytes');
+  f.manifest.attachments = [{ id: '1', status: 'downloaded', is_video: false, path: attachment, sha256: await hashFile(attachment) }];
+  await writeFile(join(f.out, 'manifest.json'), JSON.stringify(f.manifest));
+  await f.step('evidence_review', { attachments: [{ id: '1', disposition: 'reviewed' }], no_video_reason: 'Ticket has no video attachments' });
+  const p = await json(join(f.out, 'progress.json'));
+  const hardLink = join(p.artifact_directory, 'linked.png'); await link(attachment, hardLink);
+  await writeFile(join(f.out, 'ticket.md'), '# APP-1\n\nLeague count spikes after the tennis sequence.\n');
+  await writeFile(join(f.out, 'remote-links.json'), '[]\n');
+  const ticketCopy = join(p.artifact_directory, 'ticket-copy.md'); await copyFile(join(f.out, 'ticket.md'), ticketCopy);
+  const extracted = join(p.artifact_directory, 'manual-extract'); await mkdir(extracted);
+  await writeFile(join(extracted, 'manifest.json'), JSON.stringify({ source_sha256: f.manifest.attachments[0].sha256 }));
+  const frame = join(extracted, 'frame-0001.png'); await writeFile(frame, 'Frame decoded from the ticket recording');
+  const repro = path => ({ reproduction: { status: 'reproduced', attempted_locally: true, environment: 'local', target: 'localhost', steps: ['Ran app'], expected: 'Correct count', actual: 'Wrong count', evidence: [path] } });
+  for (const path of [hardLink, ticketCopy]) await assert.rejects(f.investigation(repro(path)), /Copies of ticket/);
+  await assert.rejects(f.investigation(repro(frame)), /extracted from a ticket video/);
+  const recording = join(p.artifact_directory, 'local-recording'); await mkdir(recording);
+  await writeFile(join(recording, 'manifest.json'), JSON.stringify({ source_sha256: 'local-screen-recording' }));
+  await f.investigation(repro(await f.artifact('local-recording/frame-0001.png', 'Frame from the local reproduction recording')));
+  await f.call('invalidate', { phase: 'investigation', reason: 'Recheck with an empty API capture' });
+  await f.investigation(repro(await f.artifact('empty-response.json', '[]\n')));
+});
+
+test('irrelevant not_reproduced exceptions do not trap feature or reproduced-bug clarification', async t => {
+  for (const kind of ['feature', 'bug']) {
+    const f = await fixture(t, { kind }); await f.evidence();
+    await f.investigation({ exceptions: [{ code: 'not_reproduced', reason: 'Unnecessary historical annotation' }] });
+    if (kind === 'feature') {
+      const path = join(f.out, 'progress.json'), p = await json(path); p.version = 6; await writeFile(path, JSON.stringify(p));
+    }
+    await f.clarification({ exception_decisions: [{ phase: 'investigation', code: 'not_reproduced', resolution: 'not_material', reason: kind === 'feature' ? 'Feature has no defect to reproduce' : 'Local reproduction is already recorded' }] });
+    assert.equal((await f.call('status')).next_phase, 'implementation');
+  }
+});
+
+test('a pending waiver cannot be silently replaced after start', async t => {
+  const f = await fixture(t, { kind: 'bug' }); await f.evidence();
+  const request = await f.requestWaiver(await omission(f));
+  await assert.rejects(f.requestWaiver({ exceptions: request.report.exceptions, reproduction: { ...request.report.reproduction, reason: 'Changed reason' } }), /Invalidate investigation before replacing/);
+  assert.equal((await f.call('status')).reproduction_request.id, request.status.reproduction_request.id);
+});
+
+test('reset preserves schema 6 configuration and all feature restrictions', async t => {
+  const f = await fixture(t, { scope: 'clarify' });
+  const path = join(f.out, 'progress.json'), p = await json(path); p.version = 6;
+  await writeFile(path, JSON.stringify(p));
+  const status = await session('reset', 'APP-1', { out: f.out }, { env: {} });
+  assert.equal(status.next_phase, 'evidence_review');
+  assert.deepEqual((await json(path)).config, p.config);
+});
+
+test('bug-to-feature reclassification requires an auditable reason', async t => {
+  const f = await fixture(t, { kind: 'mixed' });
+  const config = { kind: 'feature', scope: 'implement', user_request: 'This request now covers only a new feature', repository: f.repo };
+  await assert.rejects(f.call('configure', { input: await f.input(config) }), /reclassification_reason/);
+  assert.equal((await f.call('status')).kind, 'mixed');
+  await f.call('configure', { input: await f.input({ ...config, reclassification_reason: 'User removed the bug scope; remaining request adds a new feature' }) });
+  const p = await json(join(f.out, 'progress.json'));
+  assert.ok(p.events.some(e => e.action === 'reclassify' && e.from === 'mixed' && e.to === 'feature' && e.reason));
+});
+
+test('schema 5 and 6 mixed sessions reopen investigation through schema 7', async t => {
+  for (const version of [5, 6]) {
+    const f = await fixture(t, { kind: 'mixed' }); await f.evidence(); await f.investigation(); await f.clarification();
+    const path = join(f.out, 'progress.json'), p = await json(path); p.version = version;
+    await writeFile(path, JSON.stringify(p));
+    const status = await f.call('status');
+    assert.equal(status.next_phase, 'investigation'); assert.equal(status.phases.clarification, 'pending');
+    assert.equal((await json(path)).version, 7);
   }
 });

@@ -146,7 +146,7 @@ export async function prepareTicket(key, options, { env = process.env, fetchImpl
     try { previous = await json(join(out, 'manifest.json')); } catch (error) { if (error.code !== 'ENOENT') throw error; }
     let progress = null;
     try { progress = await json(join(out, 'progress.json')); } catch (error) { if (error.code !== 'ENOENT') throw error; }
-    if (progress?.version > 6) throw new Error('Saved workflow uses a newer schema; use a newer skill version');
+    if (progress?.version > 7) throw new Error('Saved workflow uses a newer schema; use a newer skill version');
     await privateDir(join(out, 'attachments'));
     await privateDir(join(out, 'evidence'));
     // Include custom acceptance criteria by default; explicit fields narrow the snapshot.

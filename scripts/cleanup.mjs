@@ -13,7 +13,7 @@ export async function cleanup(directory, { apply = false, days = 30, now = Date.
     await json(join(root, 'identity.json'));
     const progress = await json(join(root, 'progress.json'));
     if (!progress || typeof progress !== 'object' || !PHASES.every(phase => ['pending', 'in_progress', 'blocked', 'complete'].includes(progress.phases?.[phase]?.status))) throw new Error('Invalid progress: expected all workflow phases and statuses; refusing cleanup');
-    if (progress.version > 6) throw new Error('Newer workflow schema; use a newer skill version');
+    if (progress.version > 7) throw new Error('Newer workflow schema; use a newer skill version');
     if (Object.values(progress.phases).some(p => p.status === 'in_progress' || p.status === 'blocked')) throw new Error('Stop active workflow work before cache cleanup');
     const documents = [];
     async function scan(directory) {

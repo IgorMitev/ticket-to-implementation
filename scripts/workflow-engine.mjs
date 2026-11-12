@@ -1,5 +1,5 @@
 import { repositorySnapshot, validateRepositoryChanges } from './repository.mjs';
-import { readFile, realpath, stat, lstat } from 'node:fs/promises';
+import { readFile, readdir, realpath, stat, lstat } from 'node:fs/promises';
 import { join, resolve, relative, isAbsolute, sep, dirname } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { atomic, hashFile, hashObject, json, privateDir } from './lib.mjs';
@@ -36,6 +36,73 @@ async function proofFile(path, workDirectory, artifactDirectory) {
   const info = await stat(file);
   requireThat(info.isFile() && info.size > 0, `Artifact must be a non-empty file: ${file}`);
   return { path: file, sha256: await hashFile(file) };
+}
+// Trivial content such as an empty `[]` list is too common to identify a copy.
+const MIN_COPY_BYTES = 16;
+const ticketHashes = new WeakMap();
+async function ticketContentHashes(manifest, workDirectory) {
+  if (ticketHashes.has(manifest)) return ticketHashes.get(manifest);
+  const hashes = new Set();
+  const files = ['ticket.md', 'manifest.json', 'issue.json', 'comments.json', 'remote-links.json'].map(f => join(workDirectory, f));
+  for (const a of manifest.attachments ?? []) {
+    if (a.sha256 && (a.bytes ?? a.size ?? MIN_COPY_BYTES) >= MIN_COPY_BYTES) hashes.add(a.sha256);
+    else if (a.path && !a.sha256) files.push(a.path);
+    if (a.video?.directory) for (const f of await readdir(a.video.directory).catch(() => [])) files.push(join(a.video.directory, f));
+  }
+  for (const file of files) {
+    try {
+      const info = await stat(file);
+      if (info.isFile() && info.size >= MIN_COPY_BYTES) hashes.add(await hashFile(file));
+    } catch { /* Missing ticket files have nothing to copy. */ }
+  }
+  ticketHashes.set(manifest, hashes);
+  return hashes;
+}
+// Byte-identical copies and hard links are caught by content hash; edited or re-extracted copies are a documented limit.
+async function localEvidence(path, progress, manifest, workDirectory) {
+  const proof = await proofFile(path, workDirectory, progress.artifact_directory);
+  const active = await realpath(progress.artifact_directory);
+  requireThat(inside(active, proof.path), 'Local runtime evidence must be in the active artifact_directory, not ticket text, attachments or extracted video');
+  for (const attachment of manifest.attachments ?? []) {
+    if (attachment.path) requireThat(proof.path !== await realpath(attachment.path).catch(() => resolve(attachment.path)), 'Jira attachments cannot serve as local runtime evidence');
+    if (attachment.video?.directory) {
+      const directory = await realpath(attachment.video.directory).catch(() => resolve(attachment.video.directory));
+      requireThat(!inside(directory, proof.path), 'Extracted ticket video cannot serve as local runtime evidence');
+    }
+  }
+  requireThat(!(await ticketContentHashes(manifest, workDirectory)).has(proof.sha256), 'Copies of ticket text, attachments or extracted ticket frames cannot serve as local runtime evidence');
+  const sources = new Set((manifest.attachments ?? []).map(a => a.sha256).filter(Boolean));
+  for (let directory = dirname(proof.path); inside(active, directory); directory = dirname(directory)) {
+    let extraction = null;
+    try { extraction = await json(join(directory, 'manifest.json')); } catch { /* Not an extract-video output directory. */ }
+    requireThat(!sources.has(extraction?.source_sha256), 'Frames extracted from a ticket video cannot serve as local runtime evidence');
+    if (directory === active) break;
+  }
+  return proof;
+}
+// Paths only: deterministic re-runs legitimately reproduce earlier bytes, so copies are a documented limit.
+async function recordedFiles(progress) {
+  const paths = [];
+  const addAssignment = a => paths.push(a?.path, a?.binding_path, a?.repository_baseline);
+  for (const state of Object.values(progress.phases)) {
+    paths.push(...(state.artifacts ?? []).map(a => a.path), state.result_file, state.reproduction_request?.path, state.proposal?.path);
+    addAssignment(state.assignment);
+  }
+  for (const event of progress.events ?? []) {
+    paths.push(event.result_file, event.request?.path, event.proposal?.path);
+    addAssignment(event.assignment);
+  }
+  const real = new Set();
+  for (const path of new Set(paths.filter(Boolean))) real.add(await realpath(path).catch(() => resolve(path)));
+  return real;
+}
+async function postFixEvidence(path, progress, manifest, workDirectory) {
+  const proof = await localEvidence(path, progress, manifest, workDirectory);
+  requireThat(!(await recordedFiles(progress)).has(proof.path), 'Post-fix evidence cannot reuse baseline, request, result or handoff files recorded by earlier steps');
+  const fixed = Date.parse(progress.phases.implementation.completed_at);
+  requireThat(Number.isFinite(fixed), 'Implementation completion time is missing; reopen implementation');
+  requireThat((await stat(proof.path)).mtimeMs >= fixed, 'Post-fix evidence must be written during verification, after implementation completed');
+  return proof;
 }
 async function repoFile(path, repository) {
   text(path, 'changed file');
@@ -78,7 +145,7 @@ export async function evidenceFingerprint(manifest) {
 
 export async function synchronize(workDirectory, manifest, previous) {
   let progress = previous;
-  if (progress?.version > 6) throw new Error('Saved workflow uses a newer schema; use a newer skill version');
+  if (progress?.version > 7) throw new Error('Saved workflow uses a newer schema; use a newer skill version');
   if (progress?.version === 5) {
     // Keep the mandatory user approval introduced in v5; only execution must restart.
     progress.version = 6;
@@ -89,7 +156,14 @@ export async function synchronize(workDirectory, manifest, previous) {
     if (progress.config?.scope === 'implement') resetFrom(progress, 'implementation', 'Implementation handoff now required; stop any old worker before resuming');
     record(progress, 'upgrade', { from: 5, to: 6 });
   }
-  if (!progress || progress.version !== 6) {
+  if (progress?.version === 6) {
+    progress.version = 7;
+    if (['bug', 'mixed'].includes(progress.config?.kind)) {
+      resetFrom(progress, 'investigation', 'Mandatory local reproduction gate: revalidate local evidence or obtain an explicit omission waiver; stop any active worker');
+    }
+    record(progress, 'upgrade', { from: 6, to: 7 });
+  }
+  if (!progress || progress.version !== 7) {
     let archive;
     if (progress) {
       await privateDir(join(workDirectory, 'history'));
@@ -110,9 +184,9 @@ export async function synchronize(workDirectory, manifest, previous) {
   const scopedDone = workflowStatus(progress, manifest).done;
   for (const phase of PHASES) {
     const state = progress.phases[phase];
-    if (state.status !== 'complete' && !state.proposal) continue;
+    if (state.status !== 'complete' && !state.proposal && !state.reproduction_request) continue;
     let changed = false;
-    for (const artifact of [...(state.artifacts ?? []), { path: state.proposal?.path ?? state.result_file, sha256: state.proposal?.file_sha256 ?? state.result_sha256 }]) {
+    for (const artifact of [...(state.artifacts ?? []), { path: state.reproduction_request?.path ?? state.proposal?.path ?? state.result_file, sha256: state.reproduction_request?.file_sha256 ?? state.proposal?.file_sha256 ?? state.result_sha256 }]) {
       try { if (await hashFile(artifact.path) !== artifact.sha256) changed = true; } catch { changed = true; }
     }
     if (phase === 'implementation' && state.repository_snapshot) {
@@ -167,6 +241,7 @@ export function workflowStatus(progress, manifest) {
       : progress.phases[next].status === 'blocked' ? `Resolve blocker for ${next}: ${progress.phases[next].blocker}`
       : progress.phases[next].proposal ? 'Present the recorded requirements summary to the user and wait for explicit approval of this proposal before completing clarification.'
       : progress.phases[next].status === 'in_progress' ? `Finish ${next} and submit its structured result.` : `Start ${next}.`,
+    reproduction_request: progress.phases.investigation.reproduction_request ?? null,
     proposal: next ? progress.phases[next].proposal ?? null : null,
     phase_token: next ? progress.phases[next].token ?? null : null,
     questions: progress.unresolved_questions ?? [],
@@ -180,7 +255,7 @@ function currentPhase(progress, manifest, phase) {
   requireThat(workflowStatus(progress, manifest).next_phase === phase, 'Earlier required phases must be complete; invalidate a completed phase before revising it');
 }
 
-async function validateResult(phase, report, progress, manifest, workDirectory) {
+async function validateResult(phase, report, progress, manifest, workDirectory, { requestingWaiver = false } = {}) {
   text(report.summary, 'summary');
   const artifacts = [];
   for (const path of list(report.artifacts, 'artifacts')) artifacts.push(await proofFile(path, workDirectory, progress.artifact_directory));
@@ -228,11 +303,32 @@ async function validateResult(phase, report, progress, manifest, workDirectory) 
       const r = report.reproduction;
       requireThat(r && typeof r === 'object', 'Bug and mixed requests require reproduction results');
       oneOf(r.status, ['reproduced', 'not_reproduced', 'blocked'], 'reproduction.status');
+      requireThat(typeof r.attempted_locally === 'boolean', 'reproduction.attempted_locally must explicitly state whether a local runtime attempt occurred');
+      if (r.status !== 'blocked') requireThat(r.attempted_locally, 'Reproduced/not_reproduced requires an actual local runtime attempt; use blocked when unable to attempt');
       text(r.environment, 'reproduction.environment');
+      text(r.target, 'reproduction.target');
       requireThat(list(r.steps, 'reproduction.steps').length > 0, 'Record reproduction steps or attempted setup steps');
       r.steps.forEach(s => text(s, 'reproduction step'));
       text(r.expected, 'reproduction.expected'); text(r.actual, 'reproduction.actual');
-      if (r.status !== 'reproduced') { text(r.reason, 'reproduction.reason'); requiredException('not_reproduced', 'The bug was not reproduced'); }
+      requireThat(list(r.evidence, 'reproduction.evidence').length > 0, 'Local reproduction or its blocker requires concrete evidence');
+      for (const path of r.evidence) artifacts.push(await localEvidence(path, progress, manifest, workDirectory));
+      if (r.status !== 'reproduced') {
+        text(r.reason, 'reproduction.reason');
+        text(r.alternative_verification, 'reproduction.alternative_verification');
+        requiredException('not_reproduced', 'The bug was not reproduced');
+        if (!requestingWaiver) {
+          const request = progress.phases.investigation.reproduction_request;
+          requireThat(request, 'Local reproduction is mandatory: request an explicit user waiver before completing investigation');
+          requireThat(hashObject(reproductionProposal(report)) === request.sha256, 'Reproduction circumstances changed; request a new user waiver');
+          const waiver = report.reproduction_waiver;
+          requireThat(waiver?.decision === 'approved' && waiver.scope === 'proceed_without_local_reproduction', 'User must explicitly approve proceeding without local reproduction');
+          requireThat(waiver.request_id === request.id, 'Stale or missing reproduction waiver request_id');
+          text(waiver.user_response, 'reproduction_waiver.user_response');
+        }
+      } else {
+        requireThat(!requestingWaiver && report.reproduction_waiver === undefined, 'A reproduced bug does not need a waiver');
+        requireThat(!progress.phases.investigation.reproduction_request, 'Invalidate investigation before replacing a pending waiver with successful reproduction');
+      }
     }
     if (['feature', 'mixed'].includes(progress.config.kind)) { text(report.feature_analysis, 'feature_analysis'); list(report.constraints, 'constraints'); }
   }
@@ -252,6 +348,14 @@ async function validateResult(phase, report, progress, manifest, workDirectory) 
       for (const exception of result.exceptions ?? []) {
         const resolution = list(report.exception_decisions ?? [], 'exception_decisions').find(d => d.phase === earlier && d.code === exception.code);
         requireThat(resolution, `Resolve ${earlier}/${exception.code} before implementation`);
+        if (earlier === 'investigation' && exception.code === 'not_reproduced' && ['bug', 'mixed'].includes(progress.config.kind) && result.reproduction?.status !== 'reproduced') {
+          requireThat(result.reproduction_waiver?.decision === 'approved', 'Investigation must contain an approved reproduction waiver');
+          requireThat(resolution.resolution === 'accepted_by_user' &&
+            resolution.waiver_request_id === result.reproduction_waiver.request_id &&
+            resolution.user_response === result.reproduction_waiver.user_response,
+            'Reproduction omission cannot be marked resolved or not_material; carry forward the exact user-approved waiver');
+          requireThat(report.reproduction_waiver_id === result.reproduction_waiver.request_id, 'Approved summary must explicitly reference the reproduction waiver');
+        }
         oneOf(resolution.resolution, ['resolved', 'not_material', 'accepted_by_user'], 'exception resolution');
         text(resolution.reason, 'exception decision reason');
         if (resolution.resolution === 'accepted_by_user') text(resolution.user_response, 'exception user response');
@@ -284,14 +388,27 @@ async function validateResult(phase, report, progress, manifest, workDirectory) 
     if (['bug', 'mixed'].includes(progress.config.kind)) {
       oneOf(report.reproduction_recheck?.status, ['passed', 'not_reproduced'], 'reproduction_recheck.status');
       text(report.reproduction_recheck.result, 'reproduction_recheck.result');
+      const investigation = await json(progress.phases.investigation.result_file);
+      if (investigation.reproduction_waiver) {
+        const alternative = report.reproduction_recheck.alternative_verification;
+        requireThat(alternative && alternative.plan === investigation.reproduction.alternative_verification, 'Post-fix verification must carry out the exact user-approved alternative_verification plan');
+        text(alternative.performed, 'alternative_verification.performed');
+        requireThat(list(alternative.evidence, 'alternative_verification.evidence').length > 0, 'Alternative verification needs concrete post-fix evidence');
+        for (const path of alternative.evidence) artifacts.push(await postFixEvidence(path, progress, manifest, workDirectory));
+      }
       if (report.reproduction_recheck.status === 'not_reproduced') {
-        const investigation = await json(progress.phases.investigation.result_file);
         requireThat(investigation.reproduction.status !== 'reproduced', 'A previously reproduced bug requires a passing reproduction recheck');
         requiredException('runtime_unverified', 'Runtime reproduction remains unverified');
       }
     }
   }
   return { artifacts: [...new Map(artifacts.map(a => [a.path, a])).values()], codeFiles, exceptions };
+}
+
+// Freeze the full investigation and omission limitation independently of its response.
+function reproductionProposal(report) {
+  const { reproduction_waiver, phase_token, ...proposal } = report;
+  return proposal;
 }
 
 // Approval and execution tokens are not part of the requirements being approved.
@@ -310,6 +427,9 @@ export async function transition(progress, manifest, workDirectory, action, phas
     };
     requireThat((await stat(config.repository)).isDirectory(), 'repository must be a directory');
     requireThat(!inside(await realpath(workDirectory), config.repository), 'Repository must not equal or be inside the ticket work directory');
+    if (['bug', 'mixed'].includes(progress.config?.kind) && config.kind === 'feature') {
+      record(progress, 'reclassify', { from: progress.config.kind, to: config.kind, reason: text(input.reclassification_reason, 'reclassification_reason') });
+    }
     if (hashObject(config) !== hashObject(progress.config)) {
       resetFrom(progress, 'evidence_review', 'Workflow configuration changed');
       progress.config = config; progress.user_scope = config.user_request;
@@ -352,7 +472,7 @@ export async function transition(progress, manifest, workDirectory, action, phas
     } else if (action === 'block') {
       requireThat(['in_progress', 'blocked'].includes(state.status), 'Start the phase before blocking it');
       if (phase === 'verification') state.assignment_revoked = true;
-      delete state.proposal; delete state.assignment; state.artifacts = [];
+      delete state.proposal; delete state.reproduction_request; delete state.assignment; state.artifacts = [];
       state.status = 'blocked'; state.blocker = text(input.reason, 'reason'); delete state.token;
       for (const q of list(input.questions ?? [], 'questions')) {
         text(q.id, 'question.id'); text(q.question, 'question'); requireThat(typeof q.material === 'boolean', 'question.material must be boolean');
@@ -361,6 +481,21 @@ export async function transition(progress, manifest, workDirectory, action, phas
         if (!existing) progress.unresolved_questions.push({ ...q, phase });
       }
       record(progress, 'block', { phase, reason: state.blocker });
+    } else if (action === 'request-reproduction-waiver') {
+      requireThat(phase === 'investigation' && ['bug', 'mixed'].includes(progress.config.kind), 'Reproduction waivers apply only to bug/mixed investigation');
+      requireThat(state.status === 'in_progress' && input.phase_token === state.token, 'Start investigation and use its current phase_token');
+      requireThat(!state.reproduction_request, 'Invalidate investigation before replacing a pending reproduction waiver request');
+      requireThat(input.reproduction_waiver === undefined, 'Request the waiver before recording the user response');
+      const validated = await validateResult(phase, input, progress, manifest, workDirectory, { requestingWaiver: true });
+      const proposal = reproductionProposal(input);
+      const path = join(progress.artifact_directory, `reproduction-request-${randomUUID()}.json`);
+      await atomic(path, proposal);
+      state.artifacts = validated.artifacts;
+      state.reproduction_request = { id: randomUUID(), sha256: hashObject(proposal), path, file_sha256: await hashFile(path), requested_at: new Date().toISOString() };
+      state.status = 'blocked';
+      state.blocker = 'Local reproduction is mandatory. Ask the user to explicitly approve proceeding without it for this recorded limitation; otherwise continue reproduction.';
+      delete state.token;
+      record(progress, 'request-reproduction-waiver', { phase, request: state.reproduction_request });
     } else if (action === 'present') {
       requireThat(phase === 'clarification', 'Only clarification has a proposal presentation step');
       requireThat(state.status === 'in_progress', 'Start clarification before presenting its proposal');

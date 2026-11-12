@@ -10,7 +10,7 @@ export async function newProgress(key, workDirectory) {
   const artifactDirectory = join(workDirectory, 'workflow', randomUUID());
   await privateDir(artifactDirectory);
   return {
-    version: 6, issue_key: key, artifact_directory: artifactDirectory, reconciled_snapshot: null, user_scope: null,
+    version: 7, issue_key: key, artifact_directory: artifactDirectory, reconciled_snapshot: null, user_scope: null,
     config: null, revision: 0, events: [], observed_evidence: null,
     phases: Object.fromEntries(PHASES.map(p => [p, { status: 'pending', artifacts: [] }])),
     unresolved_questions: [], next_action: 'Read ticket.md and manifest.json; review relevant attachments.',

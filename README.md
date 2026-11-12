@@ -6,7 +6,7 @@ An agent skill for taking Jira bugs and feature requests through evidence review
 
 1. Fetch ticket content, comments, links, and attachments.
 2. Extract timestamped video frames locally for agent review.
-3. Reproduce bugs or investigate feature requirements.
+3. Reproduce bugs locally (or obtain explicit user permission to proceed without reproduction); investigate feature requirements.
 4. Clarify requirements and obtain explicit approval of the implementation summary.
 5. Hand the approved brief to an implementation subagent.
 6. Review changes and verify acceptance criteria against the code tested.

@@ -70,6 +70,7 @@ export async function createHandoff(progress, workDirectory, input, phaseName = 
     investigation: {
       summary: investigation.summary, current_behavior: investigation.current_behavior,
       relevant_files: investigation.relevant_files, reproduction: investigation.reproduction,
+      reproduction_waiver: investigation.reproduction_waiver ?? null,
       feature_analysis: investigation.feature_analysis, constraints: investigation.constraints,
     },
     evidence_summary: evidence.summary,
@@ -91,6 +92,7 @@ export async function createHandoff(progress, workDirectory, input, phaseName = 
       'Read supporting evidence only as needed. Preserve unrelated local changes and inspect the existing diff before editing.',
       phaseName === 'verification' ? 'Verification only: inspect and test the accepted implementation. Do not edit source; return required fixes to the main agent.' : 'Implement only the approved scope, run relevant verification, and return structured reports with this binding.',
       'Do not advance workflow phases, ask the user directly, widen scope, publish, deploy, or update Jira. check-worker and receipt registration through verify.mjs are permitted.',
+      'A baseline reproduction waiver does not waive post-fix verification. Honor its limitation and alternative plan; never infer new user consent or relabel an unreproduced bug as reproduced.',
       'Return blockers and material ambiguities to the main agent. Never invent user decisions or claim unrun tests passed.',
     ],
   };
