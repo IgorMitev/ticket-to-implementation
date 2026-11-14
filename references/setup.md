@@ -23,8 +23,8 @@ Jira Data Center is not supported. An authorized integration or a manual export 
 node "$SKILL_DIR/scripts/prepare-ticket.mjs" ABC-123
 node "$SKILL_DIR/scripts/prepare-ticket.mjs" ABC-123 --out "$WORK_DIR" --fields customfield_10001,customfield_10002
 node "$SKILL_DIR/scripts/extract-video.mjs" /path/demo.mov --out /path/new-evidence
-node "$SKILL_DIR/scripts/session.mjs" continue ABC-123
-node "$SKILL_DIR/scripts/session.mjs" reset ABC-123
+node "$SKILL_DIR/scripts/session.mjs" continue ABC-123 --format compact
+node "$SKILL_DIR/scripts/session.mjs" reset ABC-123 --format compact
 ```
 
 Exit codes: 0 success; 1 fatal configuration, API or extraction error; 2 partial ticket preparation with errors recorded in `manifest.json`; 3 `LOCK_BUSY`. Stdout contains only artifact paths, counts and status. Do not paste raw JSON or attachment data into the conversation.
@@ -49,6 +49,12 @@ Issue keys are case-insensitive. Description, comments, relevant fields and link
 - `--audio`: also extract audio for the range.
 
 The manifest records the actual first and last frame coverage and any limitations. No HDR tone mapping is applied, so colour-critical interpretation is unsupported.
+
+### Workflow output and drafts
+
+`workflow.mjs` and `session.mjs` accept `--format compact|full` (default `full`). Compact CLI output preserves warnings, questions, exceptions, pending proposals/waivers and required artifact paths, while omitting the full assignment/receipt registry and phase table. Programmatic calls continue returning full state.
+
+`workflow.mjs draft KEY --out WORK_DIR --phase PHASE --format compact` writes fresh incomplete report skeletons after the phase is started. Implementation/verification workers must add `--input BINDING_PATH`. It never reads an old report as input or overwrites it. See [draft reports](main-agent.md#draft-reports).
 
 ### session
 

@@ -5,7 +5,7 @@ The main agent runs this conversation. Be constructively skeptical and specific;
 1. Present the current understanding in a short brief: user goal, reported behavior, observed evidence, local findings, and material unknowns. Attribute claims to their sources.
 2. Ask two to four consequential questions at a time (fewer when sufficient). Offer a recommended answer and its tradeoff when possible. Continue useful independent work while waiting.
 3. Follow up where an answer contradicts the ticket, recording, repository behavior, or an earlier decision. Explain the concrete conflict. New user instructions can supersede old ticket text; record that decision.
-4. When criteria are testable and material decisions are settled, use the [clarification approval procedure](workflow.md#clarification).
+4. When criteria are testable and material decisions are settled, use the [clarification approval procedure](main-agent.md#clarification).
 
 ## Feature prompts to select from
 

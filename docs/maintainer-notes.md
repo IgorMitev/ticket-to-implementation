@@ -115,3 +115,9 @@ Run `node tests/create-agent-trial.mjs` to create an isolated Git repository and
 ## Sources
 
 [Kiro skills](https://kiro.dev/docs/skills/), [Kiro subagents](https://kiro.dev/docs/custom-agents/subagents/), [Jira issue API](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issues/), [Jira attachment API](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-attachments/), [Jira remote links](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-remote-links/), [FFmpeg filters](https://ffmpeg.org/ffmpeg-filters.html).
+
+## Context regression trials
+
+Use completion notifications or longer bounded waits within host communication limits; avoid repeated short waits and progress nudges. Pin the model, host instructions, fixture, simulated responses, negative probes and interruption policy across repeated trials. Report peak input context separately from cumulative cached/uncached input and output. Record controller payload size and model requests alongside gate outcomes. Checkpoints preserve recovery state but do not remove old context. Measure large-video review separately from extraction.
+
+Compact output is a CLI presentation projection; engine state and validators remain complete. Drafts are newly created incomplete files, not submissions or automatic approval. Test stale bindings/tokens, pending proposals, waiver timing and path confinement whenever draft generation changes.

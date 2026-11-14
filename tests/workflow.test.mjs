@@ -737,3 +737,194 @@ test('schema 5 and 6 mixed sessions reopen investigation through schema 7', asyn
     assert.equal((await json(path)).version, 7);
   }
 });
+
+test('compact CLI preserves actionable state and leaves full API/default output compatible', async t => {
+  const { presentStatus } = await import('../scripts/presentation.mjs');
+  const f = await fixture(t);
+  const cli = (script, args) => JSON.parse(execFileSync(process.execPath, [
+    new URL(`../scripts/${script}.mjs`, import.meta.url).pathname, ...args, 'APP-1', '--out', f.out,
+  ], { encoding: 'utf8' }));
+  const compare = async () => {
+    const full = cli('workflow', ['status']);
+    assert.deepEqual(full, JSON.parse(JSON.stringify(await f.call('status'))));
+    const saved = await readFile(join(f.out, 'progress.json'), 'utf8');
+    assert.deepEqual(cli('workflow', ['status', '--format', 'compact']), presentStatus(full, 'compact'));
+    assert.equal(await readFile(join(f.out, 'progress.json'), 'utf8'), saved);
+    return full;
+  };
+  await compare();
+  await f.start('evidence_review');
+  await f.call('block', { phase: 'evidence_review', input: await f.input({ reason: 'Need evidence access', questions: [{ id: 'Q', question: 'Which account?', material: true }] }) });
+  const blocked = await compare();
+  assert.equal(presentStatus(blocked, 'compact').phase_status, 'blocked');
+  const resumed = cli('session', ['continue', '--format', 'compact']);
+  assert.deepEqual(resumed.questions, blocked.questions);
+  assert.match(resumed.next_action, /Need evidence access/);
+  assert.ok(resumed.progress && resumed.manifest && resumed.ticket);
+  await f.call('invalidate', { phase: 'evidence_review', reason: 'Access restored' });
+  await f.step('evidence_review', { attachments: [], no_video_reason: 'None', resolved_questions: [{ id: 'Q', answer: 'Use the fixture account', source: 'user', user_response: 'Use the fixture account' }] });
+  await f.investigation();
+  const proposal = await f.present();
+  assert.deepEqual(presentStatus(await compare(), 'compact').proposal, proposal.status.proposal);
+  await f.approve(proposal); const assigned = await f.handoff();
+  const compact = presentStatus(await compare(), 'compact');
+  assert.equal(compact.assignment.binding_path, assigned.assignment.binding_path);
+  assert.equal(compact.assignment.repository_baseline, undefined);
+  await f.implementation(); await f.verification();
+  assert.equal((await compare()).done, true);
+  const reset = cli('session', ['reset', '--format', 'compact']);
+  assert.ok(reset.archive); assert.equal(reset.done, false);
+});
+
+test('compact output retains warnings, waiver requests and completion exceptions without mutation', async t => {
+  const { presentStatus } = await import('../scripts/presentation.mjs');
+  const f = await fixture(t, { kind: 'bug', partial: true });
+  await f.evidence([{ code: 'missing_evidence', reason: 'Missing comments' }]);
+  const waiver = await f.requestWaiver({ reproduction: { status: 'blocked', attempted_locally: false,
+    target: 'local fixture', environment: 'local process', steps: ['Check fixture availability'], expected: 'Data available', actual: 'Data missing',
+    evidence: [await f.artifact('blocker.md')], reason: 'Missing data', alternative_verification: 'Use a regression fixture' },
+    exceptions: [{ code: 'not_reproduced', reason: 'Missing data' }] });
+  f.manifest.refresh_warning = 'Cached evidence; refresh failed';
+  await writeFile(join(f.out, 'manifest.json'), JSON.stringify(f.manifest));
+  const full = await f.call('status'), before = JSON.stringify(full);
+  const compact = presentStatus(full, 'compact');
+  assert.deepEqual(compact.reproduction_request, waiver.status.reproduction_request);
+  assert.deepEqual(compact.exceptions, full.exceptions);
+  assert.equal(compact.refresh_warning, f.manifest.refresh_warning);
+  assert.equal(JSON.stringify(full), before);
+  const review = await fixture(t, { scope: 'review', partial: true });
+  await review.evidence([{ code: 'missing_evidence', reason: 'No comments' }]);
+  const done = presentStatus(await review.investigation(), 'compact');
+  assert.equal(done.outcome, 'complete_with_exceptions'); assert.equal(done.exceptions.length, 1);
+});
+
+test('invalid CLI format is rejected before mutation and compact failures still invalidate stale state', async t => {
+  const f = await fixture(t); const script = new URL('../scripts/workflow.mjs', import.meta.url).pathname;
+  const saved = await readFile(join(f.out, 'progress.json'), 'utf8');
+  assert.throws(() => execFileSync(process.execPath, [script, 'start', 'APP-1', '--out', f.out, '--phase', 'evidence_review', '--format', 'bad'], { stdio: 'pipe' }), e => e.status === 1 && /format must/.test(e.stderr));
+  assert.equal(await readFile(join(f.out, 'progress.json'), 'utf8'), saved);
+  assert.throws(() => execFileSync(process.execPath, [new URL('../scripts/session.mjs', import.meta.url).pathname, 'reset', 'APP-1', '--out', f.out, '--format', 'bad'], { stdio: 'pipe' }), e => e.status === 1 && /format must/.test(e.stderr));
+  assert.equal(await readFile(join(f.out, 'progress.json'), 'utf8'), saved);
+  await f.evidence(); await f.investigation(); await f.clarification();
+  const s = await f.handoff();
+  f.manifest.snapshot_sha256 = 'changed'; await writeFile(join(f.out, 'manifest.json'), JSON.stringify(f.manifest));
+  assert.throws(() => execFileSync(process.execPath, [script, 'check-worker', 'APP-1', '--out', f.out, '--phase', 'implementation', '--input', s.assignment.binding_path, '--format', 'compact'], { stdio: 'pipe' }), e => e.status === 1 && /Earlier required/.test(e.stderr));
+  assert.equal((await json(join(f.out, 'progress.json'))).phases.evidence_review.status, 'pending');
+});
+
+test('drafts are fresh incomplete files, preserve questions and cannot refresh existing reports', async t => {
+  const f = await fixture(t);
+  await assert.rejects(f.call('draft', { phase: 'evidence_review' }), /Start the phase/);
+  const started = await f.start('evidence_review');
+  const one = await f.call('draft', { phase: 'evidence_review' });
+  const original = await readFile(one.drafts.evidence_review, 'utf8');
+  assert.deepEqual(one.draft_contents.evidence_review, JSON.parse(original));
+  assert.equal((await f.call('status')).draft_contents, undefined); // Only the draft response carries skeletons.
+  assert.equal(JSON.parse(original).phase_token, started.phase_token);
+  await assert.rejects(f.call('complete', { phase: 'evidence_review', input: one.drafts.evidence_review }), /summary/);
+  const two = await f.call('draft', { phase: 'evidence_review' });
+  assert.notEqual(one.drafts.evidence_review, two.drafts.evidence_review);
+  assert.equal(await readFile(one.drafts.evidence_review, 'utf8'), original);
+  await assert.rejects(f.call('draft', { phase: 'evidence_review', input: one.drafts.evidence_review }), /never an existing report/);
+  await f.call('block', { phase: 'evidence_review', input: await f.input({ reason: 'Missing decision', questions: [{ id: 'Q', question: 'Use partial evidence?', material: true }] }) });
+  await f.start('evidence_review');
+  const q = await json((await f.call('draft', { phase: 'evidence_review' })).drafts.evidence_review);
+  assert.deepEqual(q.resolved_questions, [{ id: 'Q', answer: '', source: '', user_response: '' }]);
+  await assert.rejects(f.call('complete', { phase: 'evidence_review', input: one.drafts.evidence_review }), /Stale.*phase_token/);
+});
+
+test('clarification drafts do not grant approval or replace pending proposals', async t => {
+  const f = await fixture(t); await f.evidence(); await f.investigation(); await f.start('clarification');
+  const d = await json((await f.call('draft', { phase: 'clarification' })).drafts.clarification);
+  assert.equal(d.alignment, undefined); assert.deepEqual(d.acceptance_criteria, []);
+  const p = await f.present();
+  await assert.rejects(f.call('draft', { phase: 'clarification' }), /proposal is pending/);
+  await assert.rejects(f.call('complete', { phase: 'clarification', input: await f.input(p.report) }), /approval|alignment|confirm/i);
+  assert.equal((await f.call('status')).proposal.id, p.status.proposal.id);
+});
+
+test('worker drafts require original bindings, remain incomplete and fail after replacement', async t => {
+  const f = await fixture(t); await f.evidence(); await f.investigation(); await f.clarification();
+  const s = await f.handoff();
+  await assert.rejects(f.call('draft', { phase: 'implementation' }), /binding/);
+  const made = await f.call('draft', { phase: 'implementation', input: s.assignment.binding_path });
+  const impl = await json(made.drafts.implementation), verification = await json(made.drafts.verification);
+  assert.deepEqual(impl.addressed_criteria, ['AC1']); assert.equal(impl.phase_token, undefined);
+  assert.equal(impl.parent_review, undefined); assert.equal(verification.criteria[0].status, '');
+  assert.deepEqual(verification.verification_receipts, []);
+  await assert.rejects(f.submit('implementation', s.phase_token, impl), /summary/);
+  await f.call('block', { phase: 'implementation', input: await f.input({ reason: 'Replace stopped worker', questions: [] }) });
+  const replacement = await f.handoff();
+  await assert.rejects(f.call('draft', { phase: 'implementation', input: s.assignment.binding_path }), /Stale.*binding/);
+  await assert.rejects(f.submit('implementation', replacement.phase_token, { ...impl, summary: 'Old result', artifacts: [await f.artifact('old.md')], changed_files: ['app.js'] }), /Stale.*binding/);
+  assert.deepEqual(await json(made.drafts.implementation), impl);
+});
+
+test('waiver drafts defer verification until its active phase and preserve alternative plan', async t => {
+  const f = await fixture(t, { kind: 'bug' }); await f.evidence();
+  const plan = 'Check the regression fixture after implementation';
+  const req = await f.requestWaiver({ reproduction: { status: 'blocked', attempted_locally: false, target: 'local fixture', environment: 'local', steps: ['Check data'], expected: 'Data exists', actual: 'Absent', evidence: [await f.artifact('setup.md')], reason: 'No data', alternative_verification: plan }, exceptions: [{ code: 'not_reproduced', reason: 'No data' }] });
+  await f.start('investigation');
+  await assert.rejects(f.call('draft', { phase: 'investigation' }), /proposal is pending/);
+  await f.approveWaiver(req);
+  await f.clarification({ reproduction_waiver_id: req.status.reproduction_request.id, exception_decisions: [{ phase: 'investigation', code: 'not_reproduced', resolution: 'accepted_by_user', reason: 'Proceed with fixture regression', waiver_request_id: req.status.reproduction_request.id, user_response: 'User: I approve proceeding without local reproduction for this limitation.' }] });
+  const s = await f.handoff();
+  const made = await f.call('draft', { phase: 'implementation', input: s.assignment.binding_path });
+  assert.deepEqual(Object.keys(made.drafts), ['implementation']);
+  await assert.rejects(f.call('draft', { phase: 'verification', input: s.assignment.binding_path }), /Earlier required/);
+  await f.implementation(); await f.start('verification');
+  const v = await json((await f.call('draft', { phase: 'verification', input: s.assignment.binding_path })).drafts.verification);
+  assert.deepEqual(v.reproduction_recheck.alternative_verification, { plan, performed: '', evidence: [] });
+  assert.equal(v.reproduction_recheck.status, '');
+});
+
+test('draft creation refuses an artifact directory escaping through a symlink', async t => {
+  const f = await fixture(t); await f.start('evidence_review');
+  const p = await json(join(f.out, 'progress.json'));
+  const escape = join(f.out, 'escape'); await symlink(f.repo, escape);
+  p.artifact_directory = escape; await writeFile(join(f.out, 'progress.json'), JSON.stringify(p));
+  await assert.rejects(f.call('draft', { phase: 'evidence_review' }), /inside the ticket/);
+});
+
+test('filled draft reports complete the same receipt-backed workflow', async t => {
+  const f = await fixture(t); await f.evidence(); await f.investigation(); await f.clarification();
+  const s = await f.handoff();
+  const cli = JSON.parse(execFileSync(process.execPath, [new URL('../scripts/workflow.mjs', import.meta.url).pathname,
+    'draft', 'APP-1', '--out', f.out, '--phase', 'implementation', '--input', s.assignment.binding_path, '--format', 'compact'], { encoding: 'utf8' }));
+  const { implementation: impl, verification: v } = cli.draft_contents;
+  assert.deepEqual(impl, await json(cli.drafts.implementation));
+  assert.deepEqual(v, await json(cli.drafts.verification));
+  await writeFile(join(f.repo, 'app.js'), 'export const enabled = true;\n');
+  const check = await verify('APP-1', { out: f.out, phase: 'implementation', binding: s.assignment.binding_path },
+    [process.execPath, '--input-type=module', '-e', "import { readFileSync } from 'node:fs'; import assert from 'node:assert/strict'; assert.match(readFileSync('app.js', 'utf8'), /enabled = true/)"]);
+  await writeFile(cli.drafts.implementation, JSON.stringify({ ...impl, phase_token: s.phase_token,
+    parent_review: 'Reviewed AC1 and passing check', repository_review: 'Only app.js changed; no user edits',
+    summary: 'Enabled feature', artifacts: [await f.artifact('draft-implementation.md')], changed_files: ['app.js'] }));
+  await f.call('complete', { phase: 'implementation', input: cli.drafts.implementation });
+  const vs = await f.start('verification');
+  await writeFile(cli.drafts.verification, JSON.stringify({ ...v, phase_token: vs.phase_token,
+    parent_review: 'Reviewed all criterion evidence and unchanged-code receipt',
+    summary: 'Verified feature', artifacts: [await f.artifact('draft-verification.md')],
+    criteria: v.criteria.map(c => ({ ...c, status: 'passed', result: 'Enabled export observed', evidence: [check.log] })),
+    checks: [{ command: 'Inspect enabled export', exit_code: 0, evidence: check.log }], verification_receipts: [check.receipt] }));
+  const done = await f.call('complete', { phase: 'verification', input: cli.drafts.verification });
+  assert.equal(done.done, true); assert.equal(done.outcome, 'complete');
+});
+
+test('handoff supplies executable draft command, confined worker paths and complete return contract', async t => {
+  const f = await fixture(t); await f.evidence(); await f.investigation(); await f.clarification();
+  const s = await f.handoff(); const packet = await json(s.assignment.path);
+  assert.deepEqual(packet.return_reports, ['implementation', 'verification']);
+  assert.equal(packet.worker_brief, s.assignment.worker_brief);
+  assert.match(await readFile(packet.worker_brief, 'utf8'), /BOTH implementation and verification/);
+  const run = JSON.parse(execFileSync('/bin/sh', ['-c', packet.draft_reports.command], { encoding: 'utf8' }));
+  for (const path of Object.values(run.drafts)) {
+    assert.ok((await realpath(path)).startsWith((await realpath(s.assignment.directory)) + '/'));
+    assert.equal((await json(path)).assignment_id, s.assignment.assignment_id);
+  }
+  const again = JSON.parse(execFileSync(packet.draft_reports.executable, packet.draft_reports.args, { encoding: 'utf8' }));
+  assert.notEqual(again.drafts.implementation, run.drafts.implementation);
+  await f.call('block', { phase: 'implementation', input: await f.input({ reason: 'Replace stopped worker', questions: [] }) });
+  await f.handoff();
+  assert.throws(() => execFileSync(packet.draft_reports.executable, packet.draft_reports.args, { stdio: 'pipe' }), e => e.status === 1 && /Stale.*binding/.test(e.stderr));
+});

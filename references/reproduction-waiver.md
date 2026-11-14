@@ -19,10 +19,10 @@ Read this only when a bug or mixed ticket could not be reproduced locally, or a 
 ```
 
 ```sh
-node "$SKILL_DIR/scripts/workflow.mjs" request-reproduction-waiver ABC-123 --out "$WORK_DIR" --phase investigation --input /path/investigation-draft.json
+node "$SKILL_DIR/scripts/workflow.mjs" request-reproduction-waiver ABC-123 --out "$WORK_DIR" --phase investigation --input /path/investigation-draft.json --format compact
 # Ask the user and wait; do not record an invented response.
-node "$SKILL_DIR/scripts/workflow.mjs" start ABC-123 --out "$WORK_DIR" --phase investigation
-node "$SKILL_DIR/scripts/workflow.mjs" complete ABC-123 --out "$WORK_DIR" --phase investigation --input /path/investigation-with-waiver.json
+node "$SKILL_DIR/scripts/workflow.mjs" start ABC-123 --out "$WORK_DIR" --phase investigation --format compact
+node "$SKILL_DIR/scripts/workflow.mjs" complete ABC-123 --out "$WORK_DIR" --phase investigation --input /path/investigation-with-waiver.json --format compact
 ```
 
 ## Changes after a request
@@ -38,6 +38,6 @@ The waiver is tied to the exact draft and its hashed artifacts. `status` and `co
 
 - **Clarification:** put `reproduction_waiver_id` in the result and show the omission and alternative in the summary presented to the user. The `not_reproduced` entry in `exception_decisions` must use `resolution: "accepted_by_user"`, `waiver_request_id`, and the same `user_response` as the accepted investigation. `resolved` and `not_material` are rejected for this exception. Approval of the implementation summary remains a separate gate.
 - **Implementation:** the worker returns its implementation report first. After implementation completes and verification starts, it carries out the approved alternative and writes fresh evidence.
-- **Verification:** include `alternative_verification` as described in the [verification result](report-contracts.md#with-an-approved-reproduction-waiver).
+- **Verification:** include `alternative_verification` as described in the [verification result](worker-reports.md#with-an-approved-reproduction-waiver).
 
 A review-only request also cannot complete bug investigation without reproduction or this permission.

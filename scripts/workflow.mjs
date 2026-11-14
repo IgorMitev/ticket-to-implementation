@@ -3,6 +3,7 @@ import { args, atomic, json, isMain } from "./lib.mjs";
 import { acquireLock, defaultWorkDir } from "./state.mjs";
 import { endpoints } from "./prepare-ticket.mjs";
 import { synchronize, transition, readInput } from "./workflow-engine.mjs";
+import { presentStatus, validateFormat } from "./presentation.mjs";
 
 export async function workflow(
   action,
@@ -13,6 +14,7 @@ export async function workflow(
   if (
     ![
       "configure",
+      "draft",
       "status",
       "start",
       "assert",
@@ -64,16 +66,18 @@ if (isMain(import.meta.url)) {
       phase: { type: "string" },
       input: { type: "string" },
       reason: { type: "string" },
+      format: { type: "string", default: "full" },
     });
     if (values.help)
       console.log(
-        "Usage: node workflow.mjs configure|status|start|assert|block|present|request-reproduction-waiver|handoff|check-worker|record-check|complete|invalidate ABC-123 [--out WORK_DIR --phase PHASE --input JSON_FILE --reason TEXT]",
+        "Usage: node workflow.mjs configure|status|start|draft|assert|block|present|request-reproduction-waiver|handoff|check-worker|record-check|complete|invalidate ABC-123 [--out WORK_DIR --phase PHASE --input JSON_FILE --reason TEXT --format compact|full]",
       );
     else {
       if (positionals.length !== 2)
         throw new Error("Provide an action and Jira issue key");
+      validateFormat(values.format);
       console.log(
-        JSON.stringify(await workflow(positionals[0], positionals[1], values)),
+        JSON.stringify(presentStatus(await workflow(positionals[0], positionals[1], values), values.format)),
       );
     }
   } catch (error) {

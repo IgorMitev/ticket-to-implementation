@@ -13,6 +13,7 @@ import {
   activeAssignment,
 } from "./handoff.mjs";
 import { PHASES, newProgress } from "./state.mjs";
+import { createDrafts } from "./drafts.mjs";
 
 function requireThat(condition, message) {
   if (!condition) throw new Error(message);
@@ -484,6 +485,19 @@ export async function synchronize(workDirectory, manifest, previous) {
   return progress;
 }
 
+function phaseGuidance(progress, phase) {
+  if (progress.phases[phase].reproduction_request)
+    return "Wait for explicit user approval of reproduction_request; then complete investigation with its recorded draft, phase_token and reproduction_waiver. Do not advance without approval.";
+  if (phase === "clarification")
+    return "Fill the clarification draft and evidence, then present --phase clarification --input DRAFT_PATH. Wait for explicit approval before complete; do not start implementation.";
+  if (["implementation", "verification"].includes(phase)) {
+    if (!activeAssignment(progress, phase))
+      return `Prepare handoff --phase ${phase} --input HANDOFF_INPUT with phase_token and mode; then assign the worker. Do not complete without reviewed reports.`;
+    return `Review the worker's ${phase} report, diff and evidence; add phase_token and parent_review${phase === "implementation" ? " plus repository_review" : ""}, then complete --phase ${phase} --input REPORT_PATH. Reuse valid receipts for unchanged code; approved reproduction waivers require fresh verification-phase evidence.`;
+  }
+  return `Fill the existing ${phase} draft with findings and evidence (create one with draft only if needed), then complete --phase ${phase} --input DRAFT_PATH with phase_token. Complete this phase before starting another.`;
+}
+
 export function workflowStatus(progress, manifest) {
   const max = phaseLimit(progress.config);
   const next = progress.config
@@ -536,7 +550,7 @@ export function workflowStatus(progress, manifest) {
           : progress.phases[next].proposal
             ? "Present the recorded requirements summary to the user and wait for explicit approval of this proposal before completing clarification."
             : progress.phases[next].status === "in_progress"
-              ? `Finish ${next} and submit its structured result.`
+              ? phaseGuidance(progress, next)
               : `Start ${next}.`,
     reproduction_request:
       progress.phases.investigation.reproduction_request ?? null,
@@ -967,6 +981,7 @@ export async function transition(
   phase,
   input = {},
 ) {
+  let drafts;
   if (action === "configure") {
     requireThat(
       input.requires_user_confirmation === undefined ||
@@ -1017,6 +1032,9 @@ export async function transition(
         delete state.blocker;
         record(progress, "start", { phase });
       }
+    } else if (action === "draft") {
+      requireThat(state.status === "in_progress", "Start the phase before creating a draft");
+      drafts = await createDrafts(progress, manifest, workDirectory, phase, input);
     } else if (action === "handoff") {
       requireThat(
         ["implementation", "verification"].includes(phase) &&
@@ -1352,6 +1370,7 @@ export async function transition(
     } else throw new Error("Unknown workflow action");
   }
   const status = workflowStatus(progress, manifest);
+  if (drafts) Object.assign(status, drafts);
   progress.next_action = status.next_action;
   return status;
 }

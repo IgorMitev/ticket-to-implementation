@@ -4,6 +4,7 @@ import { args, atomic, json, privateDir, isMain } from "./lib.mjs";
 import { acquireLock, defaultWorkDir, newProgress } from "./state.mjs";
 import { endpoints } from "./prepare-ticket.mjs";
 import { synchronize, workflowStatus } from "./workflow-engine.mjs";
+import { presentStatus, validateFormat } from "./presentation.mjs";
 
 export async function session(
   action,
@@ -87,6 +88,7 @@ export async function session(
       done: status.done,
       outcome: status.outcome,
       exceptions: status.exceptions,
+      questions: status.questions,
       reproduction_request: status.reproduction_request,
       assignment: status.assignment,
       proposal: status.proposal,
@@ -101,16 +103,17 @@ export async function session(
 
 if (isMain(import.meta.url)) {
   try {
-    const { values, positionals } = args({ out: { type: "string" } });
+    const { values, positionals } = args({ out: { type: "string" }, format: { type: "string", default: "full" } });
     if (values.help)
       console.log(
-        "Usage: node session.mjs continue|reset ABC-123 [--out EXISTING_WORK_DIR]",
+        "Usage: node session.mjs continue|reset ABC-123 [--out EXISTING_WORK_DIR --format compact|full]",
       );
     else {
       if (positionals.length !== 2)
         throw new Error("Provide continue|reset and a Jira issue key");
+      validateFormat(values.format);
       console.log(
-        JSON.stringify(await session(positionals[0], positionals[1], values)),
+        JSON.stringify(presentStatus(await session(positionals[0], positionals[1], values), values.format)),
       );
     }
   } catch (error) {
