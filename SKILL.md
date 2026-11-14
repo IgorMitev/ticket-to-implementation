@@ -58,6 +58,8 @@ For a user-supplied recording without a Jira ticket, run `extract-video.mjs FILE
 
 Decide whether this is a bug, feature or mixed request from the actual request and evidence.
 
+Perform browser/server preflight early, but normally wait until investigation starts to reproduce the defect. Evidence review does not require local reproduction. Reuse valid reproduction evidence already collected during this run according to the [investigation procedure](references/main-agent.md#investigation).
+
 - **Bug:** local runtime reproduction is mandatory before completing investigation or changing implementation code. Before starting bug or mixed investigation, follow the [Chrome DevTools MCP and server preflight](references/browser-reproduction.md#preflight). If a dev server is needed, the user must supply and run it for the entire task; agents must never start or restart it. Execute the reported sequence and capture fresh screenshots or logs in the active artifact directory, referenced from `reproduction.md`; the [investigation result](references/main-agent.md#investigation) lists what to record. Ticket files, recordings and code inspection guide the attempt but are not local runtime evidence. Transient QA data, an uncertain setup or a suspected obvious cause are reasons to investigate or ask for access, not to omit reproduction.
 - **Feature:** inspect current user flows, relevant code, reusable patterns, data contracts, permissions and integration constraints. Record findings and likely touchpoints in `investigation.md`.
 - **Mixed:** reproduce the defect as for a bug and give the enhancement its own acceptance criteria. Never relabel a bug as a feature to bypass reproduction.
