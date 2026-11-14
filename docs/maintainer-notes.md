@@ -122,6 +122,8 @@ Use completion notifications or longer bounded waits within host communication l
 
 Compact output is a CLI presentation projection; engine state and validators remain complete. Drafts are newly created incomplete files, not submissions or automatic approval. Test stale bindings/tokens, pending proposals, waiver timing and path confinement whenever draft generation changes.
 
+A focused waiver-workflow reproduction found that the instruction to run the generated draft command verbatim failed after implementation completed: the retained packet still named the implementation phase. The worker brief now specifies changing only the phase to verification on that resume. The regression test executes the generated arguments before and after the transition, checks premature verification is rejected, and preserves the original binding and approved alternative plan. This is scripted validation, not a full agent behavioral trial.
+
 
 ## Browser reproduction session fixes
 

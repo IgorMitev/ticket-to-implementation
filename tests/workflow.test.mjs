@@ -869,11 +869,21 @@ test('waiver drafts defer verification until its active phase and preserve alter
   await f.approveWaiver(req);
   await f.clarification({ reproduction_waiver_id: req.status.reproduction_request.id, exception_decisions: [{ phase: 'investigation', code: 'not_reproduced', resolution: 'accepted_by_user', reason: 'Proceed with fixture regression', waiver_request_id: req.status.reproduction_request.id, user_response: 'User: I approve proceeding without local reproduction for this limitation.' }] });
   const s = await f.handoff();
-  const made = await f.call('draft', { phase: 'implementation', input: s.assignment.binding_path });
+  const packet = await json(s.assignment.path);
+  const runDraft = args => JSON.parse(execFileSync(packet.draft_reports.executable, args, { encoding: 'utf8', stdio: 'pipe' }));
+  const made = runDraft(packet.draft_reports.args);
   assert.deepEqual(Object.keys(made.drafts), ['implementation']);
-  await assert.rejects(f.call('draft', { phase: 'verification', input: s.assignment.binding_path }), /Earlier required/);
+  // Follow the worker brief: change only the phase, retaining the original binding.
+  const verificationArgs = [...packet.draft_reports.args];
+  verificationArgs[verificationArgs.indexOf('--phase') + 1] = 'verification';
+  assert.throws(() => runDraft(verificationArgs), e => e.status === 1 && /Earlier required/.test(e.stderr));
   await f.implementation(); await f.start('verification');
-  const v = await json((await f.call('draft', { phase: 'verification', input: s.assignment.binding_path })).drafts.verification);
+  assert.throws(() => runDraft(packet.draft_reports.args), e => e.status === 1 && /Earlier required/.test(e.stderr));
+  const resumed = runDraft(verificationArgs);
+  assert.deepEqual(Object.keys(resumed.drafts), ['verification']);
+  const v = await json(resumed.drafts.verification);
+  for (const [key, value] of Object.entries(await json(s.assignment.binding_path)))
+    assert.equal(v[key], value);
   assert.deepEqual(v.reproduction_recheck.alternative_verification, { plan, performed: '', evidence: [] });
   assert.equal(v.reproduction_recheck.status, '');
 });
