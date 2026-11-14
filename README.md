@@ -44,12 +44,16 @@ Identify the target code repository when it is ambiguous. Implementation waits f
 
 ## Documentation
 
-- [Skill instructions](SKILL.md)
-- [Setup and commands](references/setup.md)
-- [Workflow controller](references/workflow.md)
-- [Implementation handoff and verification](references/implementor.md)
+Loaded by the agent, in the order it needs them:
+
+- [Skill instructions](SKILL.md): always loaded.
+- [Workflow controller](references/workflow.md): commands and per-phase results.
+- [Report contracts](references/report-contracts.md): result fields shared by the main agent and the implementor.
 - [Focused grooming](references/clarification-guide.md)
-- [Video review](references/video-review.md)
+- [Implementation worker brief](references/implementor.md) and [video review brief](references/video-review.md): given to workers.
+- [Reproduction waiver](references/reproduction-waiver.md), [recovery](references/recovery.md) and [setup and commands](references/setup.md): read only when that situation arises.
+
+For maintainers, not loaded by the agent: [maintainer notes](docs/maintainer-notes.md) cover validation internals, limits, session schemas, Kiro configuration and sources.
 
 ## Tests
 
@@ -69,4 +73,4 @@ node tests/create-agent-trial.mjs
 
 The controller checks phase order, approval records, artifact integrity, worker bindings, and verification receipts. It does not sandbox an agent or authenticate its observations or quoted user responses.
 
-Local extraction does not mean agent inference is offline. Keep private Jira data outside source control. Live Jira and Kiro integration have not been validated end to end. See the references for repository snapshot coverage, supported formats, recovery behavior, and cache cleanup.
+Local extraction does not mean agent inference is offline. Keep private Jira data outside source control. Live Jira and Kiro integration have not been validated end to end. See the [maintainer notes](docs/maintainer-notes.md) for repository snapshot coverage, supported formats and validation details, and the references for recovery behavior and cache cleanup.
