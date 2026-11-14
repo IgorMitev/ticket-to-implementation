@@ -19,7 +19,7 @@ The worker briefs in `references/` already carry both rules. Add them to any oth
 
 ## Start and resume
 
-Resolve `SKILL_DIR` (this folder), the target repository and the issue key. If the key is omitted, use the unambiguous ticket in the conversation; otherwise ask. Read repository instructions first. Run the scripts without reading their source into context. Read [setup.md](references/setup.md) only if dependencies or Jira authentication are missing.
+Resolve `SKILL_DIR` (this folder), the target repository and the issue key. If the key is omitted, use the unambiguous ticket in the conversation; otherwise ask. Read repository instructions first. Run the scripts without reading their source into context. Read [setup.md](references/setup.md) only if dependencies, Jira authentication or Chrome DevTools MCP configuration need attention.
 
 ```sh
 node "$SKILL_DIR/scripts/prepare-ticket.mjs" ABC-123
@@ -58,13 +58,13 @@ For a user-supplied recording without a Jira ticket, run `extract-video.mjs FILE
 
 Decide whether this is a bug, feature or mixed request from the actual request and evidence.
 
-- **Bug:** local runtime reproduction is mandatory before completing investigation or changing implementation code. Reuse existing local services and browser tabs where available; otherwise follow repository setup instructions. Execute the reported sequence and capture fresh screenshots or logs in the active artifact directory, referenced from `reproduction.md`; the [investigation result](references/main-agent.md#investigation) lists what to record. Ticket files, recordings and code inspection guide the attempt but are not local runtime evidence. Transient QA data, an uncertain setup or a suspected obvious cause are reasons to investigate or ask for access, not to omit reproduction.
+- **Bug:** local runtime reproduction is mandatory before completing investigation or changing implementation code. Before starting bug or mixed investigation, follow the [Chrome DevTools MCP and server preflight](references/browser-reproduction.md#preflight). If a dev server is needed, the user must supply and run it for the entire task; agents must never start or restart it. Execute the reported sequence and capture fresh screenshots or logs in the active artifact directory, referenced from `reproduction.md`; the [investigation result](references/main-agent.md#investigation) lists what to record. Ticket files, recordings and code inspection guide the attempt but are not local runtime evidence. Transient QA data, an uncertain setup or a suspected obvious cause are reasons to investigate or ask for access, not to omit reproduction.
 - **Feature:** inspect current user flows, relevant code, reusable patterns, data contracts, permissions and integration constraints. Record findings and likely touchpoints in `investigation.md`.
 - **Mixed:** reproduce the defect as for a bug and give the enhancement its own acceptance criteria. Never relabel a bug as a feature to bypass reproduction.
 
 Ask for missing access, test data, repository location or environment details as soon as they block useful work, and continue independent investigation while waiting. Use the host's secure credential mechanism, never a chat request for tokens. Do not access production or perform destructive environment resets to reproduce.
 
-Delegate codebase investigation only when it is substantial and separable. A reproduction worker may run alongside it, but give one worker exclusive ownership of the browser, session and server. No worker should edit overlapping files or ask the user competing questions.
+Delegate codebase investigation only when it is substantial and separable. A reproduction worker may run alongside it, but give one worker exclusive ownership of browser automation and the session; the user owns the dev server. No worker should edit overlapping files or ask the user competing questions.
 
 If reproduction fails or cannot be attempted, investigation completes only with explicit user permission for that specific limitation. Follow [reproduction-waiver.md](references/reproduction-waiver.md); the agent cannot skip this on its own.
 

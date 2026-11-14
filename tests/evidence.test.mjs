@@ -58,7 +58,7 @@ test('fetches paginated comments, renders custom fields, sanitizes paths and reu
   assert.ok(first.attachments[0].path.startsWith(join(out, 'attachments') + '/'));
   assert.equal(await readFile(first.attachments[0].path, 'utf8'), 'example');
   const text = await readFile(join(out, 'ticket.md'), 'utf8');
-  assert.match(text, /comment 1/); assert.match(text, /comment 2/); assert.match(text, /Acceptance criteria: It should work/);
+  assert.match(text, /comment 1/); assert.match(text, /comment 2/); assert.match(text, /Acceptance Criteria\nIt should work/);
   const savedProgress = await json(join(out, 'progress.json'));
   savedProgress.notes = 'preserved';
   await writeFile(join(out, 'progress.json'), JSON.stringify(savedProgress));
@@ -260,7 +260,7 @@ test('Jira computed fields do not invalidate requirements, while user custom fie
   types.forEach((_, i) => { issue.fields[`customfield_${10001 + i}`] = { ongoingCycle: { elapsedTime: 200 }, detail: 'changed-computed-noise' }; });
   assert.equal(evidenceSnapshot(issue, [], true), before);
   assert.doesNotMatch(ticketMarkdown(issue, [], []), /computed-noise/);
-  assert.match(ticketMarkdown(issue, [], []), /Actual requirement/);
+  assert.doesNotMatch(ticketMarkdown(issue, [], []), /Actual requirement/);
   issue.fields.customfield_10000 = 'New user requirement';
   assert.notEqual(evidenceSnapshot(issue, [], true), before);
 });
@@ -279,7 +279,7 @@ test('ADF preserves checkbox states, decisions, ordered criteria, status, dates 
   assert.match(rendered, /3\. Third criterion\n4\. Fourth criterion/);
   assert.match(rendered, /\[BLOCKED\] until 2026-11-11/);
   assert.match(rendered, /Edge cases\nMissing headers/);
-  assert.match(ticketMarkdown({ key: 'APP-1', fields: { customfield_10000: { value: 'Parent', child: { value: 'Child' } } } }, [], []), /Parent → Child/);
+  assert.match(ticketMarkdown({ key: 'APP-1', names: { customfield_10000: 'Environment(s)' }, fields: { customfield_10000: { value: 'Parent', child: { value: 'Child' } } } }, [], []), /Parent → Child/);
 });
 
 test('remote links are fetched as references, affect the snapshot and surface failures', async t => {
@@ -489,3 +489,35 @@ test('approved attachment-partial snapshot survives transient failure: ' + unava
 });
 
 }
+
+
+test('engineering projection keeps populated allowlisted fields and drops unrelated custom fields and empty sections', () => {
+  const names = { customfield_1: 'Severity', customfield_2: 'Acceptance Criteria',
+    customfield_3: 'Environment(s)', customfield_4: 'Steps to Reproduce',
+    customfield_5: 'Expected Result', customfield_6: 'Actual Result', customfield_7: 'Epic Link',
+    customfield_8: 'Budget', customfield_9: 'AWS', customfield_10: 'requestLine_purchaseOrder',
+    customfield_11: 'Purchase-order', customfield_12: 'Acceptance criteria notes' };
+  const fields = { summary: 'Sample', issuetype: {name: 'Bug'}, status: {name: 'Open'}, priority: {name: 'High'},
+    description: doc('Details'), components: [{name: 'Editor'}], labels: ['regression'],
+    versions: [{name: 'v1'}], fixVersions: [{name: 'v2'}], parent: {key: 'APP-2'}, subtasks: [{key: 'APP-3'}],
+    customfield_1: 'Critical', customfield_2: doc('Works'), customfield_3: 'QA', customfield_4: 'Click',
+    customfield_5: 'Closes', customfield_6: 'Stays open', customfield_7: 'APP-4',
+    customfield_8: 'secret-budget', customfield_9: 'secret-aws', customfield_10: 'secret-request',
+    customfield_11: 'secret-order', customfield_12: 'secret-notes', customfield_99: 'secret-unknown',
+    assignee: {displayName:'secret-assignee'}, updated: 'secret-timestamp', project: {name:'secret-project'},
+    issuelinks: [{type: {outward: 'blocks'}, outwardIssue: {key: 'APP-5'}}] };
+  const text = ticketMarkdown({key: 'APP-1', names, fields}, [{id:'1', body:doc('Discussion')}],
+    [{id:'1', filename:'evidence.png', mime_type:'image/png', size:100, status:'downloaded'}], {},
+    [{object: {title:'Spec', url:'https://example.test/spec'}}]);
+  for (const expected of ['APP-1: Sample', 'Issue Type', 'Bug', 'Status', 'Open', 'Priority', 'High',
+    'Severity', 'Critical', 'Description', 'Details', 'Acceptance Criteria', 'Works', 'Environment(s)', 'QA',
+    'Steps to Reproduce', 'Click', 'Expected Result', 'Closes', 'Actual Result', 'Stays open', 'Components',
+    'Editor', 'Labels', 'regression', 'Affects versions', 'v1', 'Fix versions', 'v2', 'Parent/Epic Link',
+    'APP-2', 'APP-4', 'Sub-tasks', 'APP-3', 'Linked issues', 'APP-5', 'External links', 'Spec',
+    'Comments', 'Discussion', 'Attachments', 'evidence.png']) assert.ok(text.includes(expected), expected);
+  assert.doesNotMatch(text, /secret-|customfield_|Updated:/);
+  const empty = ticketMarkdown({key: 'APP-1', names, fields: {summary:' ', description:doc(' '), labels:[],
+    components:[{}], customfield_1:null, customfield_2:doc(''), customfield_3:'', customfield_4:{}}},
+    [{body:doc('')}], [], {}, [{object:{title:'No URL'}}]);
+  assert.equal(empty.trim(), '# APP-1');
+});

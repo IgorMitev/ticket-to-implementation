@@ -2,13 +2,15 @@
 
 Read this for bug or mixed investigation results; feature-only work does not need this reference.
 
+Follow [browser reproduction](browser-reproduction.md) for preflight, inline artifact capture and controlled response overrides. Record the user-provided server details, reachability result, browser tool availability, any override and its cleanup in `reproduction.md`.
+
 Bug and mixed need `reproduction`:
 
 ```json
 {
   "status": "reproduced",
   "attempted_locally": true,
-  "target": "http://localhost:4200/editor",
+  "target": "<user-supplied-base-url>/editor",
   "evidence": ["/absolute/ticket/workflow/current/reproduction.md", "/absolute/ticket/workflow/current/local-run.log"],
   "environment": "Local development server, test account with editor role",
   "steps": ["Open the editor", "Change the title", "Save"],

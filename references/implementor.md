@@ -18,6 +18,8 @@ Use the packet's compact `repository_summary` and targeted Git diff or status ou
 
 ## Run checks
 
+For browser reproduction rechecks, read [browser reproduction](browser-reproduction.md), confirm Chrome DevTools MCP is callable in your own worker context, and use the server/session details and page ownership in the investigation handoff. Missing access is a blocker to the main agent, not permission to switch browser integrations. Never start or restart a dev server, including through test commands that launch one. If it stops or details are missing, return a blocker to the main agent so it can ask the user. Reapply any recorded scoped override for the recheck, remove it afterward, and close your temporary pages unless retention was requested. Report page ownership and actual cleanup outcomes for the main agent’s final check.
+
 Run every check through the bundled runner, using the packet's `skill_directory`, `work_directory` and `binding_path`:
 
 ```sh

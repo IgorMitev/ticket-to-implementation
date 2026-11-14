@@ -121,3 +121,33 @@ Run `node tests/create-agent-trial.mjs` to create an isolated Git repository and
 Use completion notifications or longer bounded waits within host communication limits; avoid repeated short waits and progress nudges. Pin the model, host instructions, fixture, simulated responses, negative probes and interruption policy across repeated trials. Report peak input context separately from cumulative cached/uncached input and output. Record controller payload size and model requests alongside gate outcomes. Checkpoints preserve recovery state but do not remove old context. Measure large-video review separately from extraction.
 
 Compact output is a CLI presentation projection; engine state and validators remain complete. Drafts are newly created incomplete files, not submissions or automatic approval. Test stale bindings/tokens, pending proposals, waiver timing and path confinement whenever draft generation changes.
+
+
+## Browser reproduction session fixes
+
+Sessions exposed agents starting their own dev servers, discovering disabled browser tools late, browser artifact writes failing across workspace roots, fetch overrides missing XHR traffic, light-DOM queries missing shadow content, and unrelated Jira custom fields inflating ticket context. The corrections live in the conditional browser reference, parent/worker routing and the readable engineering projection; detailed browser recipes are not added to the shared entrypoint.
+
+`check-dev-server.mjs` checks only the explicit user-supplied origin/route and HTTP status. It does not launch services, establish browser login or prove application health. Its certificate bypass is local to the request. The browser reference prohibits server startup even through workers or test commands. These remain agent instructions, not a host-level execution sandbox or new controller-enforced preflight gate.
+
+`xhr-response-override.js` is evaluated in the page realm only when needed. It substitutes successful JSON/text GET response bodies for an exact URL, including query, and preserves other requests. It does not mock network failures, change status/headers or suppress the real request. The fixture tests exercise descriptors, getters, matching and removal; they do not establish behavior in a live browser MCP or application framework.
+
+`ticket.md` includes only populated engineering allowlist fields. Custom engineering fields are resolved from Jira display names, without instance-specific IDs; unidentified custom fields are omitted from the readable projection. Raw issue data and the separate evidence hash policy are preserved, so a non-allowlisted custom-field change can still invalidate saved evidence. Narrowing serialization does not silently narrow change detection.
+
+For a host-level behavioral trial, use a user-managed disposable app/session and confirm:
+
+- Disabled browser MCP: the agent asks for enablement before investigation and starts no server.
+- Missing URL details or server loss: it asks for the missing details/restart, never guesses an origin or launches a server; workers return blockers.
+- Browser file-writing rejected by a different workspace root: the agent still saves genuine inline screenshot/JSON results using its own file tools.
+- A shadow-root UI: the agent reads the accessibility snapshot, or explicitly traverses shadow roots if scripting is needed.
+- A successful XHR GET carrying a rare data condition: only the exact request receives the fixture, the symptom is observed, and methods/getters plus application state are restored after success and failure. Repeat the condition after the fix.
+
+Keep these live trial outcomes distinct from unit tests. No live browser/MCP trial or measured cost reduction is implied by the fixtures.
+
+
+## Chrome integration follow-up
+
+The full Luna mock trial completed all five phases in T3, but its worker initially checked an unrelated empty browser inventory, and two agent-owned pages remained open after the agent returned. The parent corrected tool discovery and closed the pages. These observations do not establish a Kiro or Chrome DevTools MCP failure: the trial used T3's shared browser, and agent-managed server startup was a mock-only exception.
+
+Runtime browser guidance now names Chrome DevTools MCP, checks callable page-listing access separately for the main agent and browser workers, and records session/page ownership for handoff and final cleanup. Existing user pages and authenticated sessions are preserved. Kiro configuration is conditional setup guidance; T3-specific discovery commands are not part of the skill.
+
+Documentation/link checks and scripted controller tests cannot validate the Kiro connection. A Kiro + Chrome DevTools MCP trial is still required to verify tool access in delegated workers, inline artifacts and ownership-based cleanup in the intended host. The workflow schema and completion guarantees are unchanged; browser ownership/cleanup remain declared agent behavior rather than controller-enforced facts.

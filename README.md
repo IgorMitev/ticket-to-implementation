@@ -19,6 +19,7 @@ The main agent owns user interaction and approval. Scripts handle fetching, extr
 - FFmpeg 5.1 or newer and matching ffprobe for media extraction.
 - Git for Git-aware repository checks and the isolated agent trial.
 - An agent host with filesystem and command tools; image capabilities for video review.
+- For bug/mixed investigation, Chrome with callable Chrome DevTools MCP tools for the main agent and browser workers; see [Kiro Chrome setup](references/setup.md#chrome-in-kiro). When reproduction needs a dev server, you supply its full base URL (scheme, host and port), a known-good route and login state, and keep it running throughout the task. Agents never start or restart it.
 
 No npm packages, `package.json`, Python runtime, or model API keys are required by the skill scripts. Agent model usage is separate.
 
@@ -50,11 +51,12 @@ Loaded by the agent, in the order it needs them:
 - [Workflow controller](references/main-agent.md): commands and per-phase results.
 - [Worker report contracts](references/worker-reports.md): implementation and verification fields, loaded by the worker.
 - [Focused grooming](references/clarification-guide.md)
+- [Browser reproduction](references/browser-reproduction.md): Chrome MCP preflight, user-managed server, inline evidence, scoped response overrides and page cleanup.
 - [Local reproduction result](references/local-reproduction.md): bug and mixed requests only.
 - [Implementation worker brief](references/implementor.md) and [video review brief](references/video-review.md): given to workers.
 - [Reproduction waiver](references/reproduction-waiver.md), [recovery](references/recovery.md) and [setup and commands](references/setup.md): read only when that situation arises.
 
-For maintainers, not loaded by the agent: [maintainer notes](docs/maintainer-notes.md) cover validation internals, limits, session schemas, Kiro configuration and sources.
+For agents modifying this repository, [maintenance goals and review criteria](docs/skill-maintenance.md) define how to assess changes. `AGENTS.md` routes agents to that document only when modifying the skill. The [maintainer notes](docs/maintainer-notes.md) cover validation internals, limits, session schemas, Kiro configuration and sources; they are not required reading during ticket execution.
 
 ## Tests
 

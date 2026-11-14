@@ -17,7 +17,6 @@ import {
   acquireLock,
   defaultWorkDir,
   evidenceSnapshot,
-  relevantFields,
 } from "./state.mjs";
 import { synchronize } from "./workflow-engine.mjs";
 
@@ -214,70 +213,59 @@ function printable(value) {
   return String(value);
 }
 
-export function ticketMarkdown(
-  issue,
-  comments,
-  attachments,
-  fieldNames = {},
-  remoteLinks = [],
-) {
+// Readable engineering projection only. Evidence hashing retains its separate policy.
+const ENGINEERING_FIELDS = [
+  ["Issue Type", ["issuetype"]], ["Status", ["status"]],
+  ["Priority", ["priority"]], ["Severity", ["severity"]],
+  ["Description", ["description"]],
+  ["Acceptance Criteria", ["acceptancecriteria"]],
+  ["Environment(s)", ["environment", "environments"]],
+  ["Steps to Reproduce", ["stepstoreproduce"]],
+  ["Expected Result", ["expectedresult"]], ["Actual Result", ["actualresult"]],
+  ["Components", ["components"]], ["Labels", ["labels"]],
+  ["Affects versions", ["versions", "affectsversions", "affectsversion"]],
+  ["Fix versions", ["fixversions", "fixversion"]],
+  ["Parent/Epic Link", ["parent", "epiclink", "parentepiclink"]],
+  ["Sub-tasks", ["subtasks"]],
+];
+const fieldName = name => String(name).toLowerCase().replace(/[^a-z0-9]/g, "");
+function populated(value) {
+  if (value == null) return false;
+  if (typeof value === "string") return value.trim().length > 0;
+  if (Array.isArray(value)) return value.some(populated);
+  if (value.type === "doc") return adf(value).trim().length > 0;
+  if (typeof value === "object") return Object.values(value).some(populated);
+  return true;
+}
+
+export function ticketMarkdown(issue, comments, attachments, fieldNames = {}, remoteLinks = []) {
   const f = issue.fields;
-  const rows = [
-    `# ${issue.key}: ${f.summary ?? ""}`,
-    "",
-    `Type: ${f.issuetype?.name ?? "unknown"}`,
-    `Status: ${f.status?.name ?? "unknown"}`,
-    `Updated: ${f.updated ?? "unknown"}`,
-    "",
-    "## Description",
-    adf(f.description) || "(No description)",
-    "",
-    "## Fields",
-  ];
-  for (const [key, value] of Object.entries(relevantFields(issue))) {
-    if (
-      [
-        "summary",
-        "description",
-        "issuetype",
-        "status",
-        "updated",
-        "attachment",
-        "issuelinks",
-        "comment",
-      ].includes(key) ||
-      value == null
-    )
-      continue;
-    rows.push(`- ${fieldNames[key] ?? key}: ${printable(value)}`);
+  const names = { ...issue.names, ...fieldNames };
+  const rows = [`# ${issue.key}${populated(f.summary) ? `: ${f.summary}` : ""}`, ""];
+  for (const [label, aliases] of ENGINEERING_FIELDS) {
+    const values = Object.entries(f)
+      .filter(([key, value]) =>
+        aliases.includes(fieldName(key.startsWith("customfield_") ? names[key] ?? "" : key)) && populated(value))
+      .map(([, value]) => printable(value).trim()).filter(Boolean);
+    if (values.length) rows.push(`## ${label}`, [...new Set(values)].join("\n\n"), "");
   }
-  rows.push("", "## Linked issues (references only)");
-  for (const link of f.issuelinks ?? []) {
+  const linked = (f.issuelinks ?? []).flatMap(link => {
     const other = link.outwardIssue ?? link.inwardIssue;
-    rows.push(
-      `- ${link.outwardIssue ? link.type?.outward : link.type?.inward}: ${other?.key ?? "?"} — ${other?.fields?.summary ?? ""}`,
-    );
-  }
-  rows.push(
-    "",
-    "## External links (references only; linked content not fetched)",
-  );
-  for (const link of remoteLinks)
-    rows.push(
-      `- ${link.object?.title ?? "Untitled"}: ${link.object?.url ?? "(missing URL)"}${link.relationship ? ` — ${link.relationship}` : ""}`,
-    );
-  rows.push("", "## Comments");
-  for (const c of comments)
-    rows.push(
+    return other?.key ? [`- ${link.outwardIssue ? link.type?.outward ?? "Related" : link.type?.inward ?? "Related"}: ${printable(other)}`] : [];
+  });
+  if (linked.length) rows.push("## Linked issues (references only)", ...linked, "");
+  const links = remoteLinks.filter(link => populated(link.object?.url));
+  if (links.length) rows.push("## External links (references only; linked content not fetched)",
+    ...links.map(link => `- ${link.object?.title || "Untitled"}: ${link.object.url}${link.relationship ? ` — ${link.relationship}` : ""}`), "");
+  const filledComments = comments.filter(c => populated(c.body));
+  if (filledComments.length) {
+    rows.push("## Comments");
+    for (const c of filledComments) rows.push(
       `### ${c.author?.displayName ?? "Unknown author"} · ${c.created ?? ""} · ${c.id}`,
-      adf(c.body),
-      "",
-    );
-  rows.push("## Attachments");
-  for (const a of attachments)
-    rows.push(
-      `- ${a.id}: ${a.filename} (${a.mime_type}, ${a.size} bytes) — ${a.status}${a.path ? ` — ${a.path}` : ""}`,
-    );
+      adf(c.body), "");
+  }
+  if (attachments.length) rows.push("## Attachments", ...attachments.map(a =>
+    `- ${a.id}: ${a.filename} (${a.mime_type}, ${a.size} bytes) — ${a.status}${a.path ? ` — ${a.path}` : ""}`));
   return rows.join("\n") + "\n";
 }
 

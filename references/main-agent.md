@@ -80,7 +80,7 @@ If the ticket has no video attachments, include `no_video_reason`.
 
 All kinds need `current_behavior` text and `relevant_files`, an array of repository-relative paths investigated (it may be empty for a new project). Feature and mixed also need `feature_analysis` and a `constraints` array.
 
-Bug and mixed require fresh local runtime reproduction before completing investigation or changing implementation. Read [local-reproduction.md](local-reproduction.md) for the result contract. If reproduction is blocked or unsuccessful, the specific limitation requires explicit user permission through [reproduction-waiver.md](reproduction-waiver.md).
+Before starting bug or mixed investigation, complete the [browser and server preflight](browser-reproduction.md#preflight). Bug and mixed require fresh local runtime reproduction before completing investigation or changing implementation. Read [local-reproduction.md](local-reproduction.md) for the result contract. If reproduction is blocked or unsuccessful, the specific limitation requires explicit user permission through [reproduction-waiver.md](reproduction-waiver.md).
 
 ## Clarification
 
@@ -128,7 +128,7 @@ The main agent owns user interaction, scope decisions, workflow transitions and 
 
 1. Read repository instructions and inspect the current diff. Establish existing user changes and make sure no other writer is active.
 2. Start implementation and write a handoff input with its phase token: `{"phase_token":"...","mode":"subagent"}`.
-3. Run `node "$SKILL_DIR/scripts/workflow.mjs" handoff ABC-123 --out "$WORK_DIR" --phase implementation --input /path/handoff-input.json`. The returned `assignment` gives the handoff path, binding path, assignment ID and output directory. The packet already contains the approved criteria, decisions, reproduction details and references to further evidence.
+3. Run `node "$SKILL_DIR/scripts/workflow.mjs" handoff ABC-123 --out "$WORK_DIR" --phase implementation --input /path/handoff-input.json`. The returned `assignment` gives the handoff path, binding path, assignment ID and output directory. The packet already contains the approved criteria, decisions, reproduction details and references to further evidence. For browser rechecks, ensure those references identify the Chrome MCP integration, intended session/page and page ownership; transfer browser control explicitly. The worker must confirm access in its own context.
 4. Run `node "$SKILL_DIR/scripts/workflow.mjs" assert ABC-123 --out "$WORK_DIR" --phase implementation` before delegating.
 5. Spawn one implementor with the prompt below, supplying only the packet, the returned `assignment.worker_brief` path and repository instructions. Do not open the worker brief in the main agent; the worker loads it. Prefer no inherited conversation; if the host forces inheritance, say that context isolation is limited. Record the host worker ID in a note in the assignment directory so the worker can be resumed.
 6. While it works, handle user interaction and blockers, and do not edit the repository. Use completion notifications or a bounded wait consistent with host update requirements; avoid repeated short polling and redundant status nudges. Do not pull its exploration or logs into the main conversation. Scope questions go back to the user; a revised proposal needs new approval before coding resumes.
@@ -153,6 +153,8 @@ For blockers, interrupted or lost workers, replacement, or scope changes, follow
 ## Verification
 
 Submit the worker's prepared verification report when its evidence still matches the code. Rerun checks only when changes or unresolved concerns justify it. With a reproduction waiver, do not wait for that report before accepting implementation: resume the worker once verification has started so it can perform the approved alternative and produce fresh evidence.
+
+For browser work, perform the [ownership and cleanup check](browser-reproduction.md#browser-ownership-and-cleanup) before final handback, and disclose any retained pages or cleanup limitations.
 
 Add the phase token and `parent_review` and submit the unchanged worker verification findings. Add review fields to the returned unaccepted report itself; do not create a second copy solely for parent review. Never edit an accepted report or its hashed evidence. With no reproduction waiver, expect both reports from the initial worker return; do not request a second run solely because verification has now started. With a waiver, follow [the waiver requirements](reproduction-waiver.md#later-phases).
 

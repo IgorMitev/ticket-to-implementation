@@ -4,6 +4,30 @@
 
 Node.js 22+ and FFmpeg 5.1+ (a numbered release build) with matching ffprobe on PATH. The scripts use only Node.js built-ins: there is nothing to `npm install`, and no Python runtime, model API or Jira MCP server is needed. Install FFmpeg with the host's package manager if it is missing (macOS: `brew install ffmpeg`).
 
+## Chrome in Kiro
+
+Issue reproduction and browser rechecks use Chrome through Chrome DevTools MCP. This integration needs Chrome, a supported Node.js LTS runtime and npm/npx separately from the bundled skill scripts. See the [Chrome DevTools MCP requirements and setup](https://github.com/ChromeDevTools/chrome-devtools-mcp#readme).
+
+In Kiro, open the command palette and choose **Kiro: Open workspace MCP config (JSON)** or **Kiro: Open user MCP config (JSON)**. Merge this entry into the existing `mcpServers` object, preserving other servers:
+
+```json
+{
+  "mcpServers": {
+    "chrome-devtools": {
+      "command": "npx",
+      "args": ["-y", "chrome-devtools-mcp@latest"],
+      "disabled": false
+    }
+  }
+}
+```
+
+The workspace file is `.kiro/settings/mcp.json`; the user file is `~/.kiro/settings/mcp.json`. Enable Kiro's MCP support and save the configuration to reconnect. A `codex mcp add` command configures Codex, not Kiro. See [Kiro MCP configuration](https://kiro.dev/docs/mcp/configuration/) and the [Chrome DevTools Kiro setup guide](https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/main/docs/client-configurations.md).
+
+Confirm the main agent and any browser worker can call the connected server's `list_pages` tool. If Kiro uses different agent-specific MCP settings or tool permissions, make this integration available to that worker too; do not assume it inherited main-agent access.
+
+The default MCP configuration may launch a separate Chrome session. If authenticated reproduction needs the user's existing session, arrange the intended connection/profile or have the user log into the inspected Chrome session. Never infer login from the MCP connection alone. For connection options, consult the [Chrome DevTools configuration](https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/main/docs/configuration.md). Launching Chrome through MCP does not authorize launching the application's dev server; the user supplies and runs that server.
+
 ## Jira authentication
 
 The downloader supports **Jira Cloud REST v3**. Supply these through the terminal or agent environment or a secret manager, never as CLI arguments, skill text or source control:
