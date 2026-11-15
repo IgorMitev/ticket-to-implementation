@@ -119,6 +119,8 @@ Run `node tests/create-agent-trial.mjs` to create an isolated Git repository and
 
 ## Context regression trials
 
+`bench/` automates these measurements: deterministic load, output and safeguard metrics against a committed baseline, plus a scripted headless Claude Code trial on the offline fixture. See [the benchmark README](../bench/README.md).
+
 Use completion notifications or longer bounded waits within host communication limits; avoid repeated short waits and progress nudges. Pin the model, host instructions, fixture, simulated responses, negative probes and interruption policy across repeated trials. Report peak input context separately from cumulative cached/uncached input and output. Record controller payload size and model requests alongside gate outcomes. Checkpoints preserve recovery state but do not remove old context. Measure large-video review separately from extraction.
 
 Compact output is a CLI presentation projection; engine state and validators remain complete. Drafts are newly created incomplete files, not submissions or automatic approval. Test stale bindings/tokens, pending proposals, waiver timing and path confinement whenever draft generation changes.

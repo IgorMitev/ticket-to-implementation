@@ -17,5 +17,6 @@ If goals conflict, make the tradeoff explicit and justify it with evidence. Do n
 
 - Identify the goal improved and check for regressions against the other goals.
 - Validate affected behavior: run relevant script tests for code or contract changes; check links, routing and consistency for documentation changes. The full suite is `node --test tests/*.test.mjs`.
+- For changes that may affect context or cost, follow the [context benchmark workflow](../bench/README.md#workflow-for-each-change): compare the deterministic metrics with the committed baseline, and refresh it once the change is accepted.
 - For changes to agent decisions or loading behavior, use a focused behavioral trial when needed. See [maintainer notes](maintainer-notes.md#agent-trial) and [context regression trials](maintainer-notes.md#context-regression-trials). Distinguish scripted checks from observed agent behavior; compare equivalent trials before claiming context or cost savings.
 - In the change summary, state the problem, the resulting behavior, validation and any material tradeoff or unverified claim. Keep this proportional to the change rather than creating a separate report for every edit.

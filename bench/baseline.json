@@ -1,0 +1,182 @@
+{
+  "loads": {
+    "main.feature": {
+      "bytes": 31225,
+      "tokens_est": 7806,
+      "files": 3
+    },
+    "main.bug": {
+      "bytes": 42354,
+      "tokens_est": 10589,
+      "files": 5
+    },
+    "main.bug_waiver": {
+      "bytes": 46024,
+      "tokens_est": 11506,
+      "files": 6
+    },
+    "worker.implementor": {
+      "bytes": 11422,
+      "tokens_est": 2856,
+      "files": 2
+    },
+    "worker.implementor_browser": {
+      "bytes": 20623,
+      "tokens_est": 5156,
+      "files": 3
+    },
+    "worker.video": {
+      "bytes": 4022,
+      "tokens_est": 1006,
+      "files": 1
+    }
+  },
+  "safeguards": {
+    "checked": 18,
+    "missing": []
+  },
+  "cli": {
+    "feature": {
+      "cli_calls": 15,
+      "cli_bytes": 15169,
+      "cli_tokens_est": 3792,
+      "calls": [
+        {
+          "step": "configure",
+          "bytes": 619
+        },
+        {
+          "step": "status",
+          "bytes": 619
+        },
+        {
+          "step": "start evidence_review",
+          "bytes": 861
+        },
+        {
+          "step": "draft evidence_review",
+          "bytes": 1285
+        },
+        {
+          "step": "complete evidence_review",
+          "bytes": 615
+        },
+        {
+          "step": "start investigation",
+          "bytes": 855
+        },
+        {
+          "step": "draft investigation",
+          "bytes": 1316
+        },
+        {
+          "step": "complete investigation",
+          "bytes": 615
+        },
+        {
+          "step": "start clarification",
+          "bytes": 803
+        },
+        {
+          "step": "draft clarification",
+          "bytes": 1270
+        },
+        {
+          "step": "present clarification",
+          "bytes": 1190
+        },
+        {
+          "step": "complete clarification",
+          "bytes": 617
+        },
+        {
+          "step": "start implementation",
+          "bytes": 788
+        },
+        {
+          "step": "handoff implementation",
+          "bytes": 1858
+        },
+        {
+          "step": "assert implementation",
+          "bytes": 1858
+        }
+      ],
+      "handoff_bytes": 7567,
+      "handoff_tokens_est": 1892,
+      "binding_bytes": 212,
+      "worker_draft_bytes": 3125
+    },
+    "bug": {
+      "cli_calls": 15,
+      "cli_bytes": 15204,
+      "cli_tokens_est": 3801,
+      "calls": [
+        {
+          "step": "configure",
+          "bytes": 615
+        },
+        {
+          "step": "status",
+          "bytes": 615
+        },
+        {
+          "step": "start evidence_review",
+          "bytes": 857
+        },
+        {
+          "step": "draft evidence_review",
+          "bytes": 1281
+        },
+        {
+          "step": "complete evidence_review",
+          "bytes": 611
+        },
+        {
+          "step": "start investigation",
+          "bytes": 851
+        },
+        {
+          "step": "draft investigation",
+          "bytes": 1407
+        },
+        {
+          "step": "complete investigation",
+          "bytes": 611
+        },
+        {
+          "step": "start clarification",
+          "bytes": 799
+        },
+        {
+          "step": "draft clarification",
+          "bytes": 1266
+        },
+        {
+          "step": "present clarification",
+          "bytes": 1186
+        },
+        {
+          "step": "complete clarification",
+          "bytes": 613
+        },
+        {
+          "step": "start implementation",
+          "bytes": 784
+        },
+        {
+          "step": "handoff implementation",
+          "bytes": 1854
+        },
+        {
+          "step": "assert implementation",
+          "bytes": 1854
+        }
+      ],
+      "handoff_bytes": 8215,
+      "handoff_tokens_est": 2054,
+      "binding_bytes": 212,
+      "worker_draft_bytes": 3170
+    }
+  }
+}

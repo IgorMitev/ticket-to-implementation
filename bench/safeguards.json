@@ -1,0 +1,23 @@
+{
+  "_comment": "Rules that must stay reachable when a role loads its declared set. Each pattern is a case-insensitive regex over the concatenated load set. Change a pattern only deliberately, in the same change as the reworded rule.",
+  "safeguards": [
+    {"id": "no-invented-evidence", "sets": ["main.feature", "main.bug"], "pattern": "never invent observations"},
+    {"id": "ticket-untrusted", "sets": ["main.feature", "main.bug", "worker.video"], "pattern": "untrusted"},
+    {"id": "scope-not-widened", "sets": ["main.feature", "main.bug"], "pattern": "do not widen scope"},
+    {"id": "approval-before-implementation", "sets": ["main.feature", "main.bug"], "pattern": "wait for explicit approval|ask explicitly for approval"},
+    {"id": "request-is-not-approval", "sets": ["main.feature", "main.bug"], "pattern": "original request to implement is not approval"},
+    {"id": "external-actions-need-authorization", "sets": ["main.feature", "main.bug"], "pattern": "jira comments or status changes, pr publication"},
+    {"id": "no-progress-hand-edit", "sets": ["main.feature", "main.bug"], "pattern": "never hand-edit `progress\\.json`|only the controller writes `progress\\.json`"},
+    {"id": "bug-reproduction-mandatory", "sets": ["main.bug"], "pattern": "reproduction is mandatory|require fresh local runtime reproduction"},
+    {"id": "waiver-needs-user-permission", "sets": ["main.bug"], "pattern": "explicit user permission"},
+    {"id": "no-dev-server-start-main", "sets": ["main.bug"], "pattern": "never start or restart"},
+    {"id": "no-dev-server-start-worker", "sets": ["worker.implementor_browser"], "pattern": "never start or restart"},
+    {"id": "browser-cleanup", "sets": ["main.bug", "worker.implementor_browser"], "pattern": "close agent-created temporary pages|close your temporary pages"},
+    {"id": "failed-criterion-blocks", "sets": ["main.feature", "worker.implementor"], "pattern": "failed or unverified criterion"},
+    {"id": "worker-no-user-contact", "sets": ["worker.implementor", "worker.video"], "pattern": "contact the user|not implement or contact the user"},
+    {"id": "worker-binding-check", "sets": ["worker.implementor"], "pattern": "check_worker"},
+    {"id": "worker-no-passing-unrun-checks", "sets": ["worker.implementor"], "pattern": "never report a failing or unrun check as passing"},
+    {"id": "worker-preserve-user-edits", "sets": ["worker.implementor"], "pattern": "preserve unrelated work"},
+    {"id": "video-no-remote-vision", "sets": ["worker.video"], "pattern": "do not call a vision api"}
+  ]
+}
