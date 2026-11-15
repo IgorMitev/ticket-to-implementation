@@ -137,7 +137,7 @@ The main agent owns user interaction, scope decisions, workflow transitions and 
 
 > Implement the approved ticket in HANDOFF_PATH. Follow WORKER_BRIEF_PATH and repository instructions. Complete every report named in the packet's `return_reports`, or return a bound blocker. Return their paths with a concise summary. The main agent owns user interaction and workflow transitions.
 
-If subagents are unavailable or cannot access the repository, say so and generate the handoff with `mode: "main_agent"` and a nonempty `reason`, then follow the implementor brief yourself with the same binding checks, reports and verification. If the user requires delegation, block instead.
+Always delegate implementation, however small the change. Size, cost, token budget or expected speed never justify implementing in the main agent. Only if subagents are unavailable or cannot access the repository, say so and generate the handoff with `mode: "main_agent"` and a `reason` naming that limitation, then follow the implementor brief yourself with the same binding checks, reports and verification. If the user requires delegation, block instead.
 
 ### Accept results
 

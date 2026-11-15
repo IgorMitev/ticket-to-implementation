@@ -78,7 +78,7 @@ Then follow the [clarification procedure](references/main-agent.md#clarification
 
 ## Implement and verify
 
-After approval, follow [implementation](references/main-agent.md#implementation) to assign one implementor with the generated handoff and its returned `worker_brief` path (loaded by the worker only), then review its results.
+After approval, follow [implementation](references/main-agent.md#implementation) to delegate implementation to one implementor, even for small changes, with the generated handoff and its returned `worker_brief` path (loaded by the worker only), then review its results.
 
 For bugs, add a meaningful regression test where practical and repeat the original reproduction after the fix. For features, test the acceptance criteria, relevant user flows, edge cases and affected existing behavior. Run the repository-required checks appropriate to the change. If local execution is blocked, distinguish code and test evidence from unverified runtime behavior.
 

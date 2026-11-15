@@ -3,7 +3,7 @@
 // instruction loads and gate outcomes. Costs real model usage; run deliberately.
 //
 //   node bench/agent-trial.mjs run --label baseline [--runs 3] [--model claude-opus-5-5]
-//        [--effort low] [--skill-dir DIR] [--max-turns 8] [--max-budget-usd 5]
+//        [--effort low] [--skill-dir DIR] [--max-turns 8] [--max-budget-usd N  (avoid: may steer decisions)]
 //   node bench/agent-trial.mjs compare baseline candidate
 import { spawn, execFileSync } from 'node:child_process';
 import { cp, mkdir, readFile, writeFile, readdir } from 'node:fs/promises';
@@ -186,7 +186,7 @@ export function summarize(records) {
     'gate: asked punctuation first': rate(r => r.outcomes.asked_punctuation_before_approval),
     'gate: approval requested': rate(r => r.outcomes.approval_requested),
     'gate: no unapproved code change': rate(r => r.outcomes.unapproved_code_change === false),
-    'delegated to subagent': rate(r => r.outcomes.handoff_modes?.includes('subagent')),
+    'gate: delegated to subagent': rate(r => r.outcomes.handoff_modes?.includes('subagent')),
   };
 }
 
