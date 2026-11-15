@@ -2,12 +2,12 @@
 // offline TRIAL-1 fixture with scripted user replies, then records measured token usage, observed
 // instruction loads and gate outcomes. Costs real model usage; run deliberately.
 //
-//   node bench/agent-trial.mjs run --label baseline [--runs 3] [--model claude-haiku-5-5]
+//   node bench/agent-trial.mjs run --label baseline [--runs 3] [--model claude-opus-5-5]
 //        [--effort low] [--skill-dir DIR] [--max-turns 8] [--max-budget-usd 5]
 //   node bench/agent-trial.mjs compare baseline candidate
 import { spawn, execFileSync } from 'node:child_process';
 import { cp, mkdir, readFile, writeFile, readdir } from 'node:fs/promises';
-import { join, resolve, dirname, relative } from 'node:path';
+import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { createAgentTrial } from '../tests/create-agent-trial.mjs';
@@ -29,22 +29,24 @@ export function chooseReply(status, text) {
   return { kind: 'fallback', text: replies.fallback };
 }
 
-// Aggregates usage from stream-json events. Token totals come from each invocation's result
-// `usage`; per-message output counts are partial streaming values. `total_cost_usd` is
-// cumulative across resumes of one session, so the largest value is the session cost.
-// Assistant events repeat per content block, so requests are deduplicated by message id and
-// used only for request counts and peak context. Subagent events carry parent_tool_use_id.
-export function summarizeEvents(events, skillDir) {
+// Aggregates usage from stream-json events. Per-message output counts are partial streaming
+// values, so token totals come from result events. A result's `usage` covers that invocation's
+// main thread only; its `modelUsage` and `total_cost_usd` are cumulative for the session and
+// include subagents. Totals therefore come from the last result's `modelUsage`, main-thread
+// totals from summed `usage`, and the worker share is the difference. Assistant events repeat
+// per content block, so requests are deduplicated by message id and used only for request
+// counts and peak context. Subagent events carry parent_tool_use_id.
+export function summarizeEvents(events) {
   const requests = new Map(), loads = { main: new Set(), worker: new Set() }, tools = { main: 0, worker: 0 };
-  const total = { input_uncached: 0, cache_write: 0, cache_read: 0, output: 0, thinking: 0 };
-  let cost = 0, turns = 0, duration = 0;
+  const main = tally(), total = tally();
+  let cost = 0, turns = 0, duration = 0, last = null;
   for (const e of events) {
     if (e.type === 'result') {
       cost = Math.max(cost, e.total_cost_usd ?? 0); turns += e.num_turns ?? 0; duration += e.duration_ms ?? 0;
       const u = e.usage ?? {};
-      total.input_uncached += u.input_tokens ?? 0; total.cache_write += u.cache_creation_input_tokens ?? 0;
-      total.cache_read += u.cache_read_input_tokens ?? 0; total.output += u.output_tokens ?? 0;
-      total.thinking += u.output_tokens_details?.thinking_tokens ?? 0;
+      add(main, { input_uncached: u.input_tokens, cache_write: u.cache_creation_input_tokens,
+        cache_read: u.cache_read_input_tokens, output: u.output_tokens, thinking: u.output_tokens_details?.thinking_tokens });
+      if (e.modelUsage) last = e.modelUsage;
     }
     if (e.type !== 'assistant' || !e.message) continue;
     const thread = e.parent_tool_use_id ? 'worker' : 'main';
@@ -53,13 +55,17 @@ export function summarizeEvents(events, skillDir) {
       if (block.type !== 'tool_use') continue;
       tools[thread]++;
       const target = block.input?.file_path ?? block.input?.command ?? '';
-      for (const m of String(target).matchAll(/[\w./-]*(SKILL\.md|references\/[\w.-]+\.md)/g)) {
-        const path = m[0].startsWith('/') ? relative(skillDir, m[0]) : m[0].slice(m[0].indexOf(m[1]));
-        if (!path.startsWith('..')) loads[thread].add(path);
-      }
+      // Temporary paths can appear as /var/... or /private/var/..., so match the installed skill
+      // name, a shell variable prefix such as $SKILL_DIR/, or a bare relative path.
+      for (const m of String(target).matchAll(/(?:ticket-to-implementation\/|\$\{?\w+\}?\/|(?<![\w./$-]))(SKILL\.md|references\/[\w.-]+\.md)/g))
+        loads[thread].add(m[1]);
     }
   }
-  const usage = { total, main: blank(), worker: blank() };
+  if (last) for (const m of Object.values(last)) add(total, { input_uncached: m.inputTokens, cache_write: m.cacheCreationInputTokens,
+    cache_read: m.cacheReadInputTokens, output: m.outputTokens, thinking: m.thinkingTokens });
+  else Object.assign(total, main);
+  const worker = Object.fromEntries(Object.keys(total).map(k => [k, total[k] - main[k]]));
+  const usage = { total, main: { ...main, ...blank() }, worker: { ...worker, ...blank() } };
   for (const { thread, usage: u } of requests.values()) {
     const t = usage[thread], context = (u.input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0);
     t.requests++; t.peak_context = Math.max(t.peak_context, context);
@@ -68,6 +74,8 @@ export function summarizeEvents(events, skillDir) {
     observed_loads: { main: [...loads.main].sort(), worker: [...loads.worker].sort() } };
 }
 const blank = () => ({ requests: 0, peak_context: 0 });
+const tally = () => ({ input_uncached: 0, cache_write: 0, cache_read: 0, output: 0, thinking: 0 });
+const add = (t, v) => { for (const k of Object.keys(t)) t[k] += v[k] ?? 0; };
 
 function claude(args, cwd) {
   return new Promise((done, fail) => {
@@ -83,10 +91,10 @@ function claude(args, cwd) {
   });
 }
 
-function status(skillDir, trial) {
+function status(skillDir, trial, format = 'compact') {
   try {
     return JSON.parse(execFileSync(process.execPath, [join(skillDir, 'scripts/workflow.mjs'), 'status', trial.key,
-      '--out', trial.work_directory, '--format', 'compact'], { encoding: 'utf8' }));
+      '--out', trial.work_directory, '--format', format], { encoding: 'utf8' }));
   } catch { return null; }
 }
 
@@ -101,12 +109,17 @@ async function outcomes(skillDir, trial, final, transcript) {
   const notes = execFileSync('cat', [join(repo, 'notes.txt')], { encoding: 'utf8' });
   const approvalIndex = transcript.findIndex(t => t.reply === 'approval');
   const punctuationIndex = transcript.findIndex(t => t.reply === 'punctuation');
+  // Source edits are allowed only after the controller accepted an approved clarification.
+  const changed = execFileSync('git', ['-C', repo, 'diff', '--name-only', 'HEAD'], { encoding: 'utf8' }).split('\n')
+    .filter(f => f && f !== 'notes.txt');
+  const approved = status(skillDir, trial, 'full')?.phases?.clarification === 'complete';
   return {
     done: final?.done ?? false, outcome: final?.outcome ?? null, next_phase: final?.next_phase ?? null,
     tests_pass: testsPass, user_edit_preserved: notes.includes('User draft: preserve this line.'),
     asked_punctuation_before_approval: punctuationIndex >= 0 && (approvalIndex < 0 || punctuationIndex < approvalIndex),
     approval_requested: approvalIndex >= 0,
     handoff_modes: await handoffModes(trial.work_directory),
+    source_changed: changed, unapproved_code_change: changed.length > 0 && !approved,
     exception_codes: (final?.exceptions ?? []).map(e => e.code),
   };
 }
@@ -134,7 +147,7 @@ async function runOnce({ skillDir, model, effort, maxTurns, budget, index, label
   const final = status(installed, trial);
   const record = { label, run: index, model, effort: effort ?? null, skill_dir: skillDir, trial_root: trial.root, session_id: session,
     user_turns: transcript.length + 1, transcript, outcomes: await outcomes(installed, trial, final, transcript),
-    ...summarizeEvents(events, installed) };
+    ...summarizeEvents(events) };
   const dir = join(resultsRoot, label); await mkdir(dir, { recursive: true });
   await writeFile(join(dir, `run-${index}.json`), JSON.stringify(record, null, 2) + '\n');
   await writeFile(join(dir, `run-${index}.events.jsonl`), events.map(e => JSON.stringify(e)).join('\n') + '\n');
@@ -143,15 +156,21 @@ async function runOnce({ skillDir, model, effort, maxTurns, budget, index, label
 
 const median = xs => { const s = [...xs].sort((a, b) => a - b); const m = s.length >> 1; return s.length ? (s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2) : null; };
 
+// Usage medians cover completed runs only: an abandoned workflow would look like a saving.
+// Gates count every run.
 export function summarize(records) {
-  const pick = f => median(records.map(f));
+  const completed = records.filter(r => r.outcomes.done);
+  const pick = f => median(completed.map(f));
   const rate = f => `${records.filter(f).length}/${records.length}`;
   return {
     runs: records.length,
+    'completed runs (usage medians)': completed.length,
     'main peak context': pick(r => r.usage.main.peak_context),
     'main requests': pick(r => r.usage.main.requests),
     'worker peak context': pick(r => r.usage.worker.peak_context),
     'worker requests': pick(r => r.usage.worker.requests),
+    'worker cache write': pick(r => r.usage.worker.cache_write),
+    'worker output': pick(r => r.usage.worker.output),
     'total cache read': pick(r => r.usage.total.cache_read),
     'total cache write': pick(r => r.usage.total.cache_write),
     'total uncached input': pick(r => r.usage.total.input_uncached),
@@ -166,6 +185,7 @@ export function summarize(records) {
     'gate: user edit kept': rate(r => r.outcomes.user_edit_preserved),
     'gate: asked punctuation first': rate(r => r.outcomes.asked_punctuation_before_approval),
     'gate: approval requested': rate(r => r.outcomes.approval_requested),
+    'gate: no unapproved code change': rate(r => r.outcomes.unapproved_code_change === false),
     'delegated to subagent': rate(r => r.outcomes.handoff_modes?.includes('subagent')),
   };
 }
@@ -174,6 +194,21 @@ async function load(label) {
   const dir = join(resultsRoot, label);
   const files = (await readdir(dir)).filter(f => /^run-\d+\.json$/.test(f));
   return Promise.all(files.map(async f => JSON.parse(await readFile(join(dir, f), 'utf8'))));
+}
+
+// Recomputes usage metrics of saved runs from their raw events after accounting fixes.
+async function resummarize(label) {
+  const dir = join(resultsRoot, label);
+  for (const record of await load(label)) {
+    const events = (await readFile(join(dir, `run-${record.run}.events.jsonl`), 'utf8')).trim().split('\n').map(l => JSON.parse(l));
+    Object.assign(record, summarizeEvents(events));
+    const trial = { key: 'TRIAL-1', root: record.trial_root, repository: join(record.trial_root, 'repository'), work_directory: join(record.trial_root, 'ticket') };
+    const installed = join(record.trial_root, '.claude', 'skills', 'ticket-to-implementation');
+    try { record.outcomes = await outcomes(installed, trial, status(installed, trial), record.transcript); }
+    catch { /* fixture removed; keep recorded outcomes */ }
+    await writeFile(join(dir, `run-${record.run}.json`), JSON.stringify(record, null, 2) + '\n');
+    console.log(JSON.stringify({ run: record.run, cost_usd: record.cost_usd, total: record.usage.total }));
+  }
 }
 
 async function compareLabels(a, b) {
@@ -192,18 +227,22 @@ async function compareLabels(a, b) {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const { values, positionals } = parseArgs({ allowPositionals: true, options: {
-    label: { type: 'string' }, runs: { type: 'string', default: '3' }, model: { type: 'string', default: 'claude-haiku-5-5' },
-    effort: { type: 'string' }, 'skill-dir': { type: 'string' }, 'max-turns': { type: 'string', default: '8' }, 'max-budget-usd': { type: 'string' },
+    label: { type: 'string' }, runs: { type: 'string', default: '3' }, model: { type: 'string', default: 'claude-opus-5-5' },
+    effort: { type: 'string', default: 'low' }, 'skill-dir': { type: 'string' }, 'max-turns': { type: 'string', default: '8' }, 'max-budget-usd': { type: 'string' },
   } });
   const [command, ...rest] = positionals;
   if (command === 'run') {
     if (!values.label) throw new Error('--label is required');
     const skillDir = resolve(values['skill-dir'] ?? join(here, '..'));
-    for (let i = 1; i <= Number(values.runs); i++) {
+    // Append to an existing label so baselines can grow without overwriting earlier runs.
+    const existing = await load(values.label).catch(() => []);
+    const first = Math.max(0, ...existing.map(r => r.run)) + 1;
+    for (let i = first; i < first + Number(values.runs); i++) {
       const r = await runOnce({ skillDir, model: values.model, effort: values.effort, maxTurns: Number(values['max-turns']),
         budget: values['max-budget-usd'], index: i, label: values.label });
       console.log(JSON.stringify({ run: i, cost_usd: r.cost_usd, main_peak: r.usage.main.peak_context, outcomes: r.outcomes }));
     }
   } else if (command === 'compare' && rest.length === 2) await compareLabels(...rest);
-  else console.log('Usage: node bench/agent-trial.mjs run --label NAME [--runs 3 --model M --skill-dir DIR]\n       node bench/agent-trial.mjs compare LABEL_A LABEL_B');
+  else if (command === 'resummarize' && rest.length === 1) await resummarize(rest[0]);
+  else console.log('Usage: node bench/agent-trial.mjs run --label NAME [--runs 3 --model M --skill-dir DIR]\n       node bench/agent-trial.mjs compare LABEL_A LABEL_B\n       node bench/agent-trial.mjs resummarize LABEL');
 }

@@ -64,19 +64,26 @@ test('simulated user approves only a pending proposal', () => {
 test('event summary deduplicates requests and splits main and worker usage', () => {
   const usage = { input_tokens: 10, cache_creation_input_tokens: 100, cache_read_input_tokens: 1000, output_tokens: 5 };
   const events = [
-    { type: 'assistant', message: { id: 'm1', usage, content: [{ type: 'tool_use', name: 'Read', input: { file_path: '/skill/references/main-agent.md' } }] } },
+    { type: 'assistant', message: { id: 'm1', usage, content: [{ type: 'tool_use', name: 'Read', input: { file_path: '/var/t/.claude/skills/ticket-to-implementation/references/main-agent.md' } }] } },
     { type: 'assistant', message: { id: 'm1', usage, content: [{ type: 'text', text: 'x' }] } },
-    { type: 'assistant', parent_tool_use_id: 't1', message: { id: 'w1', usage: { ...usage, cache_read_input_tokens: 50 }, content: [{ type: 'tool_use', name: 'Bash', input: { command: 'cat /skill/references/implementor.md' } }] } },
-    // Resumed invocations: usage is per invocation, total_cost_usd is cumulative for the session.
-    { type: 'result', total_cost_usd: 0.1, num_turns: 3, duration_ms: 10, usage: { input_tokens: 1, cache_read_input_tokens: 100, output_tokens: 40, output_tokens_details: { thinking_tokens: 4 } } },
-    { type: 'result', total_cost_usd: 0.25, num_turns: 2, duration_ms: 5, usage: { input_tokens: 2, cache_read_input_tokens: 300, output_tokens: 60 } },
+    { type: 'assistant', message: { id: 'm2', usage, content: [{ type: 'tool_use', name: 'Bash', input: { command: 'S=/x; cat "$S/references/clarification-guide.md" && cat references/setup.md /repo/docs/references/other.md' } }] } },
+    { type: 'assistant', parent_tool_use_id: 't1', message: { id: 'w1', usage: { ...usage, cache_read_input_tokens: 50 }, content: [{ type: 'tool_use', name: 'Bash', input: { command: 'cat /private/var/t/.claude/skills/ticket-to-implementation/references/implementor.md' } }] } },
+    // Resumed invocations: usage is per invocation and main-thread only; modelUsage and
+    // total_cost_usd are cumulative for the session and include the subagent.
+    { type: 'result', total_cost_usd: 0.1, num_turns: 3, duration_ms: 10, usage: { input_tokens: 1, cache_read_input_tokens: 100, output_tokens: 40, output_tokens_details: { thinking_tokens: 4 } },
+      modelUsage: { m: { inputTokens: 1, cacheReadInputTokens: 100, cacheCreationInputTokens: 0, outputTokens: 40, thinkingTokens: 4 } } },
+    { type: 'result', total_cost_usd: 0.25, num_turns: 2, duration_ms: 5, usage: { input_tokens: 2, cache_read_input_tokens: 300, output_tokens: 60 },
+      modelUsage: { m: { inputTokens: 3, cacheReadInputTokens: 900, cacheCreationInputTokens: 70, outputTokens: 130, thinkingTokens: 4 } } },
   ];
-  const s = summarizeEvents(events, '/skill');
-  assert.equal(s.usage.main.requests, 1);
+  const s = summarizeEvents(events);
+  assert.equal(s.usage.main.requests, 2);
   assert.equal(s.usage.main.peak_context, 1110);
   assert.equal(s.usage.worker.peak_context, 160);
-  assert.deepEqual(s.usage.total, { input_uncached: 3, cache_write: 0, cache_read: 400, output: 100, thinking: 4 });
-  assert.deepEqual(s.observed_loads, { main: ['references/main-agent.md'], worker: ['references/implementor.md'] });
+  assert.deepEqual(s.usage.total, { input_uncached: 3, cache_write: 70, cache_read: 900, output: 130, thinking: 4 });
+  assert.equal(s.usage.main.cache_read, 400);
+  assert.equal(s.usage.worker.cache_read, 500);
+  assert.equal(s.usage.worker.output, 30);
+  assert.deepEqual(s.observed_loads, { main: ['references/clarification-guide.md', 'references/main-agent.md', 'references/setup.md'], worker: ['references/implementor.md'] });
   assert.equal(s.cost_usd, 0.25);
   assert.equal(s.model_turns, 5);
   const summary = summarize([{ ...s, user_turns: 2, outcomes: { done: true, tests_pass: true, user_edit_preserved: true, asked_punctuation_before_approval: true, approval_requested: true } }]);

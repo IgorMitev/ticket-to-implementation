@@ -20,7 +20,7 @@ Byte counts are exact. The deterministic `tokens_est` values are bytes/4 estimat
 
 ## Workflow for each change
 
-1. Before editing, make sure `baseline.json` matches the starting commit (`--compare` shows all zero deltas). For behavioral work, record a baseline once per model: `node bench/agent-trial.mjs run --label base-<sha> --runs 3`.
+1. Before editing, make sure `baseline.json` matches the starting commit (`--compare` shows all zero deltas). For behavioral work, record a baseline once: `node bench/agent-trial.mjs run --label base-<sha> --runs 3`.
 2. Make one change. Update `load-sets.json` if routing changed.
 3. Run `node bench/context-bench.mjs --compare` and `node --test tests/*.test.mjs`. Missing safeguards fail the bench.
 4. For changes to agent instructions or loading behavior, run the behavioral trial with the same model and run count, then `node bench/agent-trial.mjs compare base-<sha> <label>`.
@@ -36,7 +36,7 @@ MCP servers are excluded with `--strict-mcp-config`, so account connectors do no
 
 Recorded per run: total tokens from each invocation's result `usage` (per-message counts are partial streaming values), session cost (the largest `total_cost_usd`, which is cumulative across resumes), request count and peak context for the main agent and for workers (requests with a `parent_tool_use_id`), tool-call counts, handoff modes (whether implementation was delegated), final exception codes, skill files observed through Read or shell commands, controller completion, fixture tests, preservation of the user's draft edit, whether the punctuation decision was asked before approval, and whether approval was requested.
 
-The default model is `claude-haiku-5-5` to keep routine comparisons cheap. Haiku results show relative changes between skill versions, not production behavior. Before accepting a change to agent decisions or loading behavior, confirm it with at least one run of the production model (`--model claude-opus-5-5 --effort low`). Compare token counts rather than dollars across models.
+The default is `claude-opus-5-5` with `--effort low`, the production configuration. A Haiku baseline was rejected: in three runs it never delegated implementation, so worker-side changes were unmeasurable, and one run abandoned the workflow and edited code without approval. Usage medians cover completed runs only; gates count every run. Compare token counts rather than dollars if the model changes.
 
 Limits:
 
