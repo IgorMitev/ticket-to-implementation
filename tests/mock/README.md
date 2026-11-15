@@ -8,7 +8,7 @@ Give a fresh Luna main agent the run paths and `SKILL.md`. Direct it to use the 
 
 Use the same model, effort, host, prompts, evaluator responses and worker policy for both versions. Permit one Luna implementation worker. Each main and worker agent first runs `python3 usage.py register RUN_DIRECTORY ROLE`. Do not let agents inspect the other variant or evaluator code. Record thread/task IDs outside agent context. Keep fixture preparation and evaluation outside measured agent sessions.
 
-After all agents have finished, run `python3 usage.py collect RUN_DIRECTORY`. It reads each registered Codex session's last cumulative total, counts cached input as part of input, and reports peak per-request input separately. Record all sessions if the host resets one; do not mistake a T3 thread for a single provider session. Usage updates are a proxy for requests, not a guaranteed API-request count. No dollar estimate is made.
+After all agents have finished, run `python3 usage.py collect RUN_DIRECTORY`. It reads each registered Codex session's last cumulative total, counts cached input as part of input, and reports peak per-request input separately. Record all sessions if the host resets one; do not mistake a T3 thread for a single provider session. Usage updates are a proxy for requests, not a guaranteed API-request count. Tool calls count top-level provider calls, not every nested command in code mode. No dollar estimate is made.
 
 Compare completed runs with `python3 compare.py MAIN_RUN CANDIDATE_RUN REPORT_DIRECTORY`; this writes JSON deltas, a Markdown metrics table and a self-contained HTML chart.
 

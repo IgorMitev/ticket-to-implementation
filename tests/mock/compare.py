@@ -13,7 +13,7 @@ metrics = {
     'Output': lambda x: x['totals']['output_tokens'],
     'Total tokens': lambda x: x['totals']['total_tokens'],
     'Peak request input': lambda x: x['peak_request_input_tokens'],
-    'Tool calls': lambda x: x['tool_calls'],
+    'Top-level tool calls': lambda x: x['tool_calls'],
 }
 rows = []
 for label, metric in metrics.items():
