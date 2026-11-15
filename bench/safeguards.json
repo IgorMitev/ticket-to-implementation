@@ -8,6 +8,7 @@
     {"id": "request-is-not-approval", "sets": ["main.feature", "main.bug"], "pattern": "original request to implement is not approval"},
     {"id": "external-actions-need-authorization", "sets": ["main.feature", "main.bug"], "pattern": "jira comments or status changes, pr publication"},
     {"id": "delegate-implementation", "sets": ["main.feature", "main.bug"], "pattern": "always delegate implementation"},
+    {"id": "configure-through-controller", "sets": ["main.feature", "main.bug"], "pattern": "configure the kind, scope, repository and original user request"},
     {"id": "no-progress-hand-edit", "sets": ["main.feature", "main.bug"], "pattern": "never hand-edit `progress\\.json`|only the controller writes `progress\\.json`"},
     {"id": "bug-reproduction-mandatory", "sets": ["main.bug"], "pattern": "reproduction is mandatory|require fresh local runtime reproduction"},
     {"id": "waiver-needs-user-permission", "sets": ["main.bug"], "pattern": "explicit user permission"},

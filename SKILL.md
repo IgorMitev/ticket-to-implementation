@@ -38,7 +38,7 @@ Both accept `--out WORK_DIR`, which also removes the need for Jira environment v
 
 Read the command sequence and current-phase sections of [main-agent.md](references/main-agent.md) before advancing the ticket; it defines configuration, scopes, result fields and each phase's procedure. Load conditional bug/waiver and recovery references only when relevant. CLI output is compact by default; `--format full` exposes detailed state when needed. Do not widen scope without a new user instruction.
 
-Follow the controller's `next_phase` and `next_action`. Only the scripts write progress, phase status and tokens, so never hand-edit `progress.json`. Record blockers through the controller.
+Before any phase work, configure the kind, scope, repository and original user request with `workflow.mjs configure`, then follow the controller's `next_phase` and `next_action`. Only the scripts write progress, phase status and tokens, so never hand-edit `progress.json`. Record blockers through the controller.
 
 When requirements or evidence change, a command is rejected as stale, a worker is lost, or a refresh fails or migrates saved state, stop affected workers and follow [recovery.md](references/recovery.md).
 

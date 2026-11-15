@@ -19,7 +19,8 @@ const RUNTIME = ['SKILL.md', 'references', 'scripts'];
 export const replies = {
   approval: 'I approve the presented summary. Proceed with implementation.',
   punctuation: 'Remove punctuation other than hyphens, collapse repeated hyphens into one, and trim leading and trailing hyphens.',
-  fallback: 'Proceed with your recommendation; ask me only when a product decision is needed.',
+  // Neutral on purpose: an earlier wording ("Proceed with your recommendation") was taken as approval.
+  fallback: 'I have nothing to add right now.',
 };
 
 // Picks the simulated user's reply from controller state and the agent's last message.
