@@ -10,6 +10,8 @@ Use the same model, effort, host, prompts, evaluator responses and worker policy
 
 After all agents have finished, run `python3 usage.py collect RUN_DIRECTORY`. It reads each registered Codex session's last cumulative total, counts cached input as part of input, and reports peak per-request input separately. Record all sessions if the host resets one; do not mistake a T3 thread for a single provider session. Usage updates are a proxy for requests, not a guaranteed API-request count. No dollar estimate is made.
 
+Compare completed runs with `python3 compare.py MAIN_RUN CANDIDATE_RUN REPORT_DIRECTORY`; this writes JSON deltas, a Markdown metrics table and a self-contained HTML chart.
+
 Run `node evaluate.mjs RUN_DIRECTORY` for independent checks, then inspect saved artifacts and conversation for actual approval, delegation, evidence coverage and honest completion. A passed structural check does not prove the agent followed every instruction.
 
 This feature scenario exercises all five workflow phases, comment review, a text attachment, an unresolved decision, explicit approval, delegated implementation, receipts, existing-user-edit preservation and independent behavior checks. It does not measure bug reproduction/waivers, browser ownership, video/image tokens, recovery or interruption. Run matched repeats before treating one pair's token differences as reliable savings.
