@@ -41,7 +41,7 @@ export async function createDrafts(progress, manifest, workDirectory, phase, inp
         ? { reproduction: { status: "", attempted_locally: null, target: "",
           environment: "", steps: [], expected: "", actual: "", evidence: [] } } : {}) };
   } else if (phase === "clarification") {
-    reports[phase] = { ...common(), acceptance_criteria: [], scope_exclusions: [],
+    reports[phase] = { ...common(), implementation_context: "", acceptance_criteria: [], scope_exclusions: [],
       questions: [], exception_decisions: ["evidence_review", "investigation"]
         .flatMap(p => (progress.phases[p].exceptions ?? []).map(e =>
           ({ phase: p, code: e.code, resolution: "", reason: "" }))) };

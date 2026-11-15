@@ -116,6 +116,13 @@ test('prepares real MOV frames, indexed sheets, audio, dense ranges, and reuses 
   assert.equal(sheet.width, 960); assert.equal(sheet.height, 200);
   assert.deepEqual(overview.contact_cells.map(c => [c.row, c.column, c.timestamp_seconds]), [[1, 1, 0], [1, 2, 2]]);
   assert.match(await readFile(join(root, 'overview', overview.contact_index), 'utf8'), /frame-0002.png.*2\.000/);
+  const review = await json(join(root, 'overview', 'review.json'));
+  assert.equal(review.frames, undefined); assert.equal(review.contact_cells, undefined);
+  assert.deepEqual(review.coverage, overview.coverage);
+  assert.deepEqual(review.limitations, overview.limitations);
+  assert.deepEqual(review.contact_sheets, overview.contact_sheets);
+  assert.equal(review.frame_count, overview.frames.length);
+  assert.equal(review.contact_index, overview.contact_index);
   const dense = await extractVideo(source, { out: join(root, 'dense'), start: 1, end: 2, interval: 0.1, maxFrames: 20, width: 0 });
   assert.equal(dense.frames.length, 10);
   assert.ok(dense.frames.every(f => f.timestamp_seconds >= 1 && f.timestamp_seconds < 2));
@@ -135,8 +142,10 @@ test('prepares real MOV frames, indexed sheets, audio, dense ranges, and reuses 
   const out = join(root, 'ticket');
   const first = await prepareTicket('APP-123', { out }, { env, fetchImpl: mock.fetchImpl });
   assert.equal(first.status, 'complete'); assert.equal(first.attachments[0].video.frames, 2);
+  await rm(first.attachments[0].video.review);
   const second = await prepareTicket('APP-123', { out }, { env, fetchImpl: mock.fetchImpl });
   assert.equal(second.attachments[0].video.cached, true);
+  assert.equal((await json(second.attachments[0].video.review)).frame_count, 2);
   await rm(first.attachments[0].video.contact_index);
   const third = await prepareTicket('APP-123', { out }, { env, fetchImpl: mock.fetchImpl });
   assert.notEqual(third.attachments[0].video.directory, first.attachments[0].video.directory);
@@ -520,4 +529,30 @@ test('engineering projection keeps populated allowlisted fields and drops unrela
     components:[{}], customfield_1:null, customfield_2:doc(''), customfield_3:'', customfield_4:{}}},
     [{body:doc('')}], [], {}, [{object:{title:'No URL'}}]);
   assert.equal(empty.trim(), '# APP-1');
+});
+
+test('ticket review pages preserve all comments in order and retain full ticket fallback', async t => {
+  const { writeTicketReview } = await import('../scripts/prepare-ticket.mjs');
+  const out = await temporary(t);
+  const comments = Array.from({ length: 43 }, (_, i) => ({ id: String(i),
+    author: { displayName: 'Reviewer' }, body: doc(i === 20 ? 'Oversized decision '.repeat(1000) : `Decision ${i}`) }));
+  const issue = { key: 'APP-123', fields: { description: doc('Requested feature') } };
+  const view = await writeTicketReview(out, issue, comments, [], {}, [], 'snapshot-one');
+  assert.deepEqual(view.comment_pages.flatMap(p => p.comment_ids), comments.map(c => c.id));
+  const text = (await Promise.all(view.comment_pages.map(p => readFile(p.path, 'utf8')))).join('\n');
+  for (const c of comments) assert.ok(text.includes(adf(c.body)));
+  assert.match(await readFile(view.review_ticket, 'utf8'), /Requested feature/);
+  for (const page of view.comment_pages) assert.ok((await readFile(view.review_ticket, 'utf8')).includes(page.path));
+  const prior = await readFile(view.comment_pages[0].path, 'utf8');
+  const refreshed = await writeTicketReview(out, issue, comments.slice(1, 3), [], {}, [], 'snapshot-two');
+  assert.deepEqual(refreshed.comment_pages.flatMap(p => p.comment_ids), ['1', '2']);
+  assert.equal(await readFile(view.comment_pages[0].path, 'utf8'), prior);
+  const mock = jiraMock();
+  const prepared = await prepareTicket('APP-123', { out: join(out, 'prepared') }, { env, fetchImpl: mock.fetchImpl });
+  assert.ok(prepared.review_ticket); assert.deepEqual(prepared.comment_pages.flatMap(p => p.comment_ids), ['1', '2']);
+  assert.match(await readFile(prepared.ticket, 'utf8'), /comment 1/);
+  const saved = await readFile(prepared.review_ticket, 'utf8');
+  const failed = jiraMock({ failComments: true });
+  await prepareTicket('APP-123', { out: prepared.work_directory }, { env, fetchImpl: failed.fetchImpl });
+  assert.equal(await readFile(prepared.review_ticket, 'utf8'), saved);
 });

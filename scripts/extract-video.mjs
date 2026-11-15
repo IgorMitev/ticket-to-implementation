@@ -3,6 +3,15 @@ import { mkdir, readdir, stat, rm, readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { args, number, hashFile, atomic, isMain } from "./lib.mjs";
 
+// A reviewer needs one timestamp mapping (contact-index.md), not two JSON copies.
+export async function writeVideoReview(directory, manifest) {
+  const { frames, contact_cells, ...review } = manifest;
+  const path = join(directory, "review.json");
+  await atomic(path, { ...review, frame_count: frames.length,
+    manifest: join(directory, "manifest.json") });
+  return path;
+}
+
 export function run(command, argv, timeoutMs = 600000, onStdout) {
   return new Promise((resolveRun, reject) => {
     const child = spawn(command, argv, { stdio: ["ignore", "pipe", "pipe"] });
@@ -409,6 +418,7 @@ export async function extractVideo(input, options) {
     ],
   };
   await atomic(join(out, "manifest.json"), manifest);
+  await writeVideoReview(out, manifest);
   return manifest;
 }
 
@@ -437,6 +447,7 @@ if (isMain(import.meta.url)) {
       console.log(
         JSON.stringify({
           manifest: join(resolve(values.out), "manifest.json"),
+          review: join(resolve(values.out), "review.json"),
           frames: result.frames.length,
           contact_sheets: result.contact_sheets,
           has_audio: result.has_audio,

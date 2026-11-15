@@ -782,6 +782,8 @@ async function validateResult(
       text(c.verification, "criterion.verification");
     }
     list(report.scope_exclusions, "scope_exclusions");
+    if (report.implementation_context !== undefined)
+      text(report.implementation_context, "implementation_context");
     const questions = list(report.questions, "questions");
     for (const q of questions) {
       text(q.question, "question");

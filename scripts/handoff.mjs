@@ -162,6 +162,8 @@ export async function createHandoff(
       "One implementor owns repository edits for this assignment. Main agent owns user interaction and workflow mutations.",
     requirements: {
       summary: requirements.summary,
+      ...(nonempty(requirements.implementation_context)
+        ? { implementation_context: requirements.implementation_context } : {}),
       acceptance_criteria: requirements.acceptance_criteria,
       scope_exclusions: requirements.scope_exclusions,
       questions: requirements.questions,

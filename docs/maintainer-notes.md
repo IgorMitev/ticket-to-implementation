@@ -154,3 +154,13 @@ The full Luna mock trial completed all five phases in T3, but its worker initial
 Runtime browser guidance now names Chrome DevTools MCP, checks callable page-listing access separately for the main agent and browser workers, and records session/page ownership for handoff and final cleanup. Existing user pages and authenticated sessions are preserved. Kiro configuration is conditional setup guidance; T3-specific discovery commands are not part of the skill.
 
 Documentation/link checks and scripted controller tests cannot validate the Kiro connection. A Kiro + Chrome DevTools MCP trial is still required to verify tool access in delegated workers, inline artifacts and ownership-based cleanup in the intended host. The workflow schema and completion guarantees are unchanged; browser ownership/cleanup remain declared agent behavior rather than controller-enforced facts.
+
+## Context loading follow-up
+
+Static review found that current-phase guidance shared one large file, two routine command examples omitted compact output, browser readers loaded the exceptional override recipe, and workers reread approved narrative alongside generated requirements. Phase procedures and response overrides now have separate routes; delegation explicitly prefers isolated context.
+
+New clarification drafts include `implementation_context` for approved narrative details not already expressed in structured fields. It is frozen with the proposal and copied into the handoff; workers retain the approved-brief fallback for older results. The controller checks nonempty text when present, not semantic completeness. Main agents must keep it consistent with the presented brief and include every relevant decision.
+
+Preparation preserves full `ticket.md`, raw comments and evidence hashing. `ticket-review.md` points to ordered comment pages (up to 20 comments or approximately 12,000 characters; a single oversized comment remains intact). All pages still require main-agent review. This bounds ordinary read batches, not total comment-review tokens. A refreshed snapshot gets a separate page directory, and retained failed-refresh snapshots keep their old views. Video `review.json` omits duplicate frame mappings; `contact-index.md` remains the complete timestamp mapping. Cache reuse regenerates missing review views without re-extracting footage.
+
+Regression fixtures cover projection completeness, refresh behavior and approved-context integrity. No live host trial or measured token/cost reduction is implied. Compare equivalent feature, bug/waiver and large-evidence trials before claiming savings; especially verify that workers preserve narrative-only decisions and that main agents review every comment page.

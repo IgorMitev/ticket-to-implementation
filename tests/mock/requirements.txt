@@ -1,0 +1,5 @@
+Feature: URL label whitespace normalization
+
+Keep the exported slug(string) API. Add trimming of leading/trailing whitespace and replace each internal whitespace run with one hyphen. Preserve existing lowercase behavior. Whitespace-only and empty inputs should produce an empty string. Tabs and newlines count as whitespace. No new dependencies, UI, server or network access.
+
+Compatibility decision: punctuation policy is intentionally unresolved. Ask the mock customer before implementing. Keep the implementation focused on this feature; no unrelated cleanup.

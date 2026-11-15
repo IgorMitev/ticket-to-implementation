@@ -5,7 +5,7 @@ The main agent runs this conversation. Be constructively skeptical and specific;
 1. Present the current understanding in a short brief: user goal, reported behavior, observed evidence, local findings, and material unknowns. Attribute claims to their sources.
 2. Ask two to four consequential questions at a time (fewer when sufficient). Offer a recommended answer and its tradeoff when possible. Continue useful independent work while waiting.
 3. Follow up where an answer contradicts the ticket, recording, repository behavior, or an earlier decision. Explain the concrete conflict. New user instructions can supersede old ticket text; record that decision.
-4. When criteria are testable and material decisions are settled, use the [clarification approval procedure](main-agent.md#clarification).
+4. When criteria are testable and material decisions are settled, use the [clarification approval procedure](clarification.md).
 
 ## Feature prompts to select from
 
@@ -30,6 +30,6 @@ Only ask about these when the task makes them relevant and evidence does not ans
 
 ## Agreed brief format
 
-Use concise sections: goal; current behavior/evidence; in scope; out of scope; decisions and their sources; numbered acceptance criteria; relevant edge cases; verification approach; unresolved questions. Criteria should describe observable outcomes, preferably with preconditions and expected results. Technical choices can remain agent-owned unless they affect product behavior, risk, or scope.
+Use concise sections: goal; current behavior/evidence; in scope; out of scope; decisions and their sources; numbered acceptance criteria; relevant edge cases; verification approach; unresolved questions. Keep additional implementation-relevant narrative in the clarification result’s `implementation_context`, consistent with this brief; do not leave unique decisions only in the Markdown artifact. Criteria should describe observable outcomes, preferably with preconditions and expected results. Technical choices can remain agent-owned unless they affect product behavior, risk, or scope.
 
 If blocked, record the exact unanswered question and which work depends on it. Include any approved reproduction omission and alternative verification in the brief; see the [waiver requirements](reproduction-waiver.md#later-phases).

@@ -4,23 +4,23 @@ Main agents: read [main-agent.md](main-agent.md). Implementors: read the handoff
 
 ## Evidence review
 
-See [main-agent.md](main-agent.md#evidence-review).
+See [main-agent.md](evidence-review.md).
 
 ## Investigation
 
-See [main-agent.md](main-agent.md#investigation).
+See [main-agent.md](investigation.md).
 
 ## Clarification
 
-See [main-agent.md](main-agent.md#clarification).
+See [main-agent.md](clarification.md).
 
 ## Implementation
 
-See [main-agent.md](main-agent.md#implementation).
+See [main-agent.md](implementation.md).
 
 ## Verification
 
-See [main-agent.md](main-agent.md#verification).
+See [main-agent.md](verification.md).
 
 ## Draft reports
 

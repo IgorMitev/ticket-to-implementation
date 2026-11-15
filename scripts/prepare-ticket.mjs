@@ -12,7 +12,7 @@ import {
   privateDir,
   isMain,
 } from "./lib.mjs";
-import { extractVideo, isAnimatedGif } from "./extract-video.mjs";
+import { extractVideo, isAnimatedGif, writeVideoReview } from "./extract-video.mjs";
 import {
   acquireLock,
   defaultWorkDir,
@@ -269,6 +269,32 @@ export function ticketMarkdown(issue, comments, attachments, fieldNames = {}, re
   return rows.join("\n") + "\n";
 }
 
+// Preserve every populated comment in ordered pages; never infer semantic relevance.
+export async function writeTicketReview(out, issue, comments, attachments, fieldNames, remoteLinks, snapshot) {
+  const directory = join(out, "comment-pages", snapshot);
+  await privateDir(directory);
+  const pages = [];
+  let entries = [], size = 0;
+  const flush = async () => {
+    if (!entries.length) return;
+    const path = join(directory, `comments-${pages.length + 1}.md`);
+    await atomic(path, entries.map(e => e.text).join("\n\n") + "\n");
+    pages.push({ path, comment_ids: entries.map(e => e.id) });
+    entries = []; size = 0;
+  };
+  for (const comment of comments.filter(c => populated(c.body))) {
+    const text = `### ${comment.author?.displayName ?? "Unknown author"} · ${comment.created ?? ""} · ${comment.id}\n${adf(comment.body)}`;
+    if (entries.length && (size + text.length > 12000 || entries.length >= 20)) await flush();
+    entries.push({ id: comment.id, text }); size += text.length;
+  }
+  await flush();
+  const path = join(out, "ticket-review.md");
+  const index = pages.length ? "\n## Comment review pages\nRead every page before completing evidence review; record reviewed page paths and material decisions. An individual oversized comment remains intact.\n" +
+    pages.map(p => `- ${p.path} — comment IDs: ${p.comment_ids.join(", ")}`).join("\n") + "\n" : "";
+  await atomic(path, ticketMarkdown(issue, [], attachments, fieldNames, remoteLinks) + index);
+  return { review_ticket: path, comment_pages: pages };
+}
+
 export async function prepareTicket(
   key,
   options,
@@ -485,7 +511,8 @@ export async function prepareTicket(
                       m.contact_index,
                     ].map((f) => access(join(cached.video.directory, f))),
                   );
-                  evidence = { ...cached.video, cached: true };
+                  evidence = { ...cached.video, cached: true,
+                    review: await writeVideoReview(cached.video.directory, m) };
                 }
               } catch {
                 /* Regenerate missing evidence. */
@@ -505,6 +532,7 @@ export async function prepareTicket(
                 status: "prepared",
                 directory,
                 manifest: join(directory, "manifest.json"),
+                review: join(directory, "review.json"),
                 frames: m.frames.length,
                 contact_sheets: m.contact_sheets.map((f) => join(directory, f)),
                 contact_index: join(directory, m.contact_index),
@@ -596,6 +624,7 @@ export async function prepareTicket(
       join(out, "ticket.md"),
       ticketMarkdown(issue, comments, attachments, issue.names, remoteLinks),
     );
+    Object.assign(manifest, await writeTicketReview(out, issue, comments, attachments, issue.names, remoteLinks, snapshot));
     await atomic(join(out, "manifest.json"), manifest);
     progress = await synchronize(out, manifest, progress);
     await atomic(join(out, "progress.json"), progress);

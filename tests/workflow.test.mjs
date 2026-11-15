@@ -938,3 +938,20 @@ test('handoff supplies executable draft command, confined worker paths and compl
   await f.handoff();
   assert.throws(() => execFileSync(packet.draft_reports.executable, packet.draft_reports.args, { stdio: 'pipe' }), e => e.status === 1 && /Stale.*binding/.test(e.stderr));
 });
+
+test('approved implementation context is frozen, passed to workers, and optional for legacy results', async t => {
+  const f = await fixture(t); await f.evidence(); await f.investigation();
+  await assert.rejects(f.present({ implementation_context: '' }), /implementation_context/);
+  const context = 'Preserve keyboard focus after Save. User chose the existing role policy; no migration.';
+  const proposal = await f.present({ implementation_context: context });
+  await assert.rejects(f.approve({ ...proposal, report: { ...proposal.report,
+    implementation_context: 'Change the role policy' } }), /proposal|match|changed/i);
+  await f.approve(proposal);
+  const packet = await json((await f.handoff()).assignment.path);
+  assert.equal(packet.requirements.implementation_context, context);
+  assert.deepEqual(packet.requirements.acceptance_criteria, proposal.report.acceptance_criteria);
+  const legacy = await fixture(t); await legacy.evidence(); await legacy.investigation(); await legacy.clarification();
+  const old = await json((await legacy.handoff()).assignment.path);
+  assert.equal(old.requirements.implementation_context, undefined);
+  assert.ok(old.references.clarification.artifacts.length);
+});

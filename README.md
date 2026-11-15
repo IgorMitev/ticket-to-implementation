@@ -48,12 +48,13 @@ Identify the target code repository when it is ambiguous. Implementation waits f
 Loaded by the agent, in the order it needs them:
 
 - [Skill instructions](SKILL.md): always loaded.
-- [Workflow controller](references/main-agent.md): commands and per-phase results.
+- [Workflow controller](references/main-agent.md): shared commands and links to separately loaded phase procedures.
 - [Worker report contracts](references/worker-reports.md): implementation and verification fields, loaded by the worker.
 - [Focused grooming](references/clarification-guide.md)
 - [Browser reproduction](references/browser-reproduction.md): Chrome MCP preflight, user-managed server, inline evidence, scoped response overrides and page cleanup.
 - [Local reproduction result](references/local-reproduction.md): bug and mixed requests only.
 - [Implementation worker brief](references/implementor.md) and [video review brief](references/video-review.md): given to workers.
+- [Response overrides](references/response-overrides.md): only when injected data is needed to trigger the reported condition.
 - [Reproduction waiver](references/reproduction-waiver.md), [recovery](references/recovery.md) and [setup and commands](references/setup.md): read only when that situation arises.
 
 For agents modifying this repository, [maintenance goals and review criteria](docs/skill-maintenance.md) define how to assess changes. `AGENTS.md` routes agents to that document only when modifying the skill. The [maintainer notes](docs/maintainer-notes.md) cover validation internals, limits, session schemas, Kiro configuration and sources; they are not required reading during ticket execution.

@@ -1,0 +1,569 @@
+{
+  "issue": {
+    "key": "MOCK-1",
+    "fields": {
+      "summary": "Add whitespace normalization to the label slug helper",
+      "description": {
+        "type": "doc",
+        "version": 1,
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Feature request: trim labels and turn internal whitespace runs into hyphens while preserving lowercase behavior. Confirm punctuation handling with the customer. See attached requirements. No UI or browser work."
+              }
+            ]
+          }
+        ]
+      },
+      "updated": "2026-11-24T10:00:00Z",
+      "issuetype": {
+        "name": "Story"
+      },
+      "status": {
+        "name": "Open"
+      },
+      "attachment": [
+        {
+          "id": "42",
+          "filename": "requirements.txt",
+          "mimeType": "text/plain",
+          "size": 563,
+          "created": "2026-11-01T10:00:00Z"
+        }
+      ]
+    }
+  },
+  "comments": [
+    {
+      "id": "1",
+      "created": "2026-11-01T10:00:00Z",
+      "author": {
+        "displayName": "Mock product owner"
+      },
+      "body": {
+        "type": "doc",
+        "version": 1,
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Compatibility detail: labels may contain underscores and punctuation. Their handling must be confirmed with the customer, rather than inferred from common URL-slug conventions."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "2",
+      "created": "2026-11-02T10:00:00Z",
+      "author": {
+        "displayName": "Mock product owner"
+      },
+      "body": {
+        "type": "doc",
+        "version": 1,
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Planning note 2: this is a new whitespace-normalization feature for the existing label helper. Keep the public API, lowercase behavior and dependency-free implementation. No browser integration, server, migration, telemetry or publication is part of this ticket."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "3",
+      "created": "2026-11-03T10:00:00Z",
+      "author": {
+        "displayName": "Mock product owner"
+      },
+      "body": {
+        "type": "doc",
+        "version": 1,
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Planning note 3: this is a new whitespace-normalization feature for the existing label helper. Keep the public API, lowercase behavior and dependency-free implementation. No browser integration, server, migration, telemetry or publication is part of this ticket."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "4",
+      "created": "2026-11-04T10:00:00Z",
+      "author": {
+        "displayName": "Mock product owner"
+      },
+      "body": {
+        "type": "doc",
+        "version": 1,
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Planning note 4: this is a new whitespace-normalization feature for the existing label helper. Keep the public API, lowercase behavior and dependency-free implementation. No browser integration, server, migration, telemetry or publication is part of this ticket."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "5",
+      "created": "2026-11-05T10:00:00Z",
+      "author": {
+        "displayName": "Mock product owner"
+      },
+      "body": {
+        "type": "doc",
+        "version": 1,
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Planning note 5: this is a new whitespace-normalization feature for the existing label helper. Keep the public API, lowercase behavior and dependency-free implementation. No browser integration, server, migration, telemetry or publication is part of this ticket."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "6",
+      "created": "2026-11-06T10:00:00Z",
+      "author": {
+        "displayName": "Mock product owner"
+      },
+      "body": {
+        "type": "doc",
+        "version": 1,
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Planning note 6: this is a new whitespace-normalization feature for the existing label helper. Keep the public API, lowercase behavior and dependency-free implementation. No browser integration, server, migration, telemetry or publication is part of this ticket."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "7",
+      "created": "2026-11-07T10:00:00Z",
+      "author": {
+        "displayName": "Mock product owner"
+      },
+      "body": {
+        "type": "doc",
+        "version": 1,
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Planning note 7: this is a new whitespace-normalization feature for the existing label helper. Keep the public API, lowercase behavior and dependency-free implementation. No browser integration, server, migration, telemetry or publication is part of this ticket."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "8",
+      "created": "2026-11-08T10:00:00Z",
+      "author": {
+        "displayName": "Mock product owner"
+      },
+      "body": {
+        "type": "doc",
+        "version": 1,
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Planning note 8: this is a new whitespace-normalization feature for the existing label helper. Keep the public API, lowercase behavior and dependency-free implementation. No browser integration, server, migration, telemetry or publication is part of this ticket."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "9",
+      "created": "2026-11-09T10:00:00Z",
+      "author": {
+        "displayName": "Mock product owner"
+      },
+      "body": {
+        "type": "doc",
+        "version": 1,
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Planning note 9: this is a new whitespace-normalization feature for the existing label helper. Keep the public API, lowercase behavior and dependency-free implementation. No browser integration, server, migration, telemetry or publication is part of this ticket."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "10",
+      "created": "2026-11-10T10:00:00Z",
+      "author": {
+        "displayName": "Mock product owner"
+      },
+      "body": {
+        "type": "doc",
+        "version": 1,
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Planning note 10: this is a new whitespace-normalization feature for the existing label helper. Keep the public API, lowercase behavior and dependency-free implementation. No browser integration, server, migration, telemetry or publication is part of this ticket."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "11",
+      "created": "2026-11-11T10:00:00Z",
+      "author": {
+        "displayName": "Mock product owner"
+      },
+      "body": {
+        "type": "doc",
+        "version": 1,
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Planning note 11: this is a new whitespace-normalization feature for the existing label helper. Keep the public API, lowercase behavior and dependency-free implementation. No browser integration, server, migration, telemetry or publication is part of this ticket."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "12",
+      "created": "2026-11-12T10:00:00Z",
+      "author": {
+        "displayName": "Mock product owner"
+      },
+      "body": {
+        "type": "doc",
+        "version": 1,
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Planning note 12: this is a new whitespace-normalization feature for the existing label helper. Keep the public API, lowercase behavior and dependency-free implementation. No browser integration, server, migration, telemetry or publication is part of this ticket."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "13",
+      "created": "2026-11-13T10:00:00Z",
+      "author": {
+        "displayName": "Mock product owner"
+      },
+      "body": {
+        "type": "doc",
+        "version": 1,
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Edge cases: trim whitespace, collapse tabs and newlines between words, and return an empty string for whitespace-only input. Preserve lowercase behavior."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "14",
+      "created": "2026-11-14T10:00:00Z",
+      "author": {
+        "displayName": "Mock product owner"
+      },
+      "body": {
+        "type": "doc",
+        "version": 1,
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Planning note 14: this is a new whitespace-normalization feature for the existing label helper. Keep the public API, lowercase behavior and dependency-free implementation. No browser integration, server, migration, telemetry or publication is part of this ticket."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "15",
+      "created": "2026-11-15T10:00:00Z",
+      "author": {
+        "displayName": "Mock product owner"
+      },
+      "body": {
+        "type": "doc",
+        "version": 1,
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Planning note 15: this is a new whitespace-normalization feature for the existing label helper. Keep the public API, lowercase behavior and dependency-free implementation. No browser integration, server, migration, telemetry or publication is part of this ticket."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "16",
+      "created": "2026-11-16T10:00:00Z",
+      "author": {
+        "displayName": "Mock product owner"
+      },
+      "body": {
+        "type": "doc",
+        "version": 1,
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Planning note 16: this is a new whitespace-normalization feature for the existing label helper. Keep the public API, lowercase behavior and dependency-free implementation. No browser integration, server, migration, telemetry or publication is part of this ticket."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "17",
+      "created": "2026-11-17T10:00:00Z",
+      "author": {
+        "displayName": "Mock product owner"
+      },
+      "body": {
+        "type": "doc",
+        "version": 1,
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Planning note 17: this is a new whitespace-normalization feature for the existing label helper. Keep the public API, lowercase behavior and dependency-free implementation. No browser integration, server, migration, telemetry or publication is part of this ticket."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "18",
+      "created": "2026-11-18T10:00:00Z",
+      "author": {
+        "displayName": "Mock product owner"
+      },
+      "body": {
+        "type": "doc",
+        "version": 1,
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Planning note 18: this is a new whitespace-normalization feature for the existing label helper. Keep the public API, lowercase behavior and dependency-free implementation. No browser integration, server, migration, telemetry or publication is part of this ticket."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "19",
+      "created": "2026-11-19T10:00:00Z",
+      "author": {
+        "displayName": "Mock product owner"
+      },
+      "body": {
+        "type": "doc",
+        "version": 1,
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Planning note 19: this is a new whitespace-normalization feature for the existing label helper. Keep the public API, lowercase behavior and dependency-free implementation. No browser integration, server, migration, telemetry or publication is part of this ticket."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "20",
+      "created": "2026-11-20T10:00:00Z",
+      "author": {
+        "displayName": "Mock product owner"
+      },
+      "body": {
+        "type": "doc",
+        "version": 1,
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Planning note 20: this is a new whitespace-normalization feature for the existing label helper. Keep the public API, lowercase behavior and dependency-free implementation. No browser integration, server, migration, telemetry or publication is part of this ticket."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "21",
+      "created": "2026-11-21T10:00:00Z",
+      "author": {
+        "displayName": "Mock product owner"
+      },
+      "body": {
+        "type": "doc",
+        "version": 1,
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Planning note 21: this is a new whitespace-normalization feature for the existing label helper. Keep the public API, lowercase behavior and dependency-free implementation. No browser integration, server, migration, telemetry or publication is part of this ticket."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "22",
+      "created": "2026-11-22T10:00:00Z",
+      "author": {
+        "displayName": "Mock product owner"
+      },
+      "body": {
+        "type": "doc",
+        "version": 1,
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Planning note 22: this is a new whitespace-normalization feature for the existing label helper. Keep the public API, lowercase behavior and dependency-free implementation. No browser integration, server, migration, telemetry or publication is part of this ticket."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "23",
+      "created": "2026-11-23T10:00:00Z",
+      "author": {
+        "displayName": "Mock product owner"
+      },
+      "body": {
+        "type": "doc",
+        "version": 1,
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Planning note 23: this is a new whitespace-normalization feature for the existing label helper. Keep the public API, lowercase behavior and dependency-free implementation. No browser integration, server, migration, telemetry or publication is part of this ticket."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "24",
+      "created": "2026-11-24T10:00:00Z",
+      "author": {
+        "displayName": "Mock product owner"
+      },
+      "body": {
+        "type": "doc",
+        "version": 1,
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Final scope: implement whitespace normalization only. The punctuation decision is still unresolved. Ask the customer and obtain approval of the full concrete requirements before editing implementation code."
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
