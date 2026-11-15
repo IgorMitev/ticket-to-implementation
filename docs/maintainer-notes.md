@@ -166,3 +166,10 @@ Preparation preserves full `ticket.md`, raw comments and evidence hashing. `tick
 Regression fixtures cover projection completeness, refresh behavior and approved-context integrity. No live host trial or measured token/cost reduction is implied. Compare equivalent feature, bug/waiver and large-evidence trials before claiming savings; especially verify that workers preserve narrative-only decisions and that main agents review every comment page.
 
 The first paired Luna feature trial preserved all tested workflow gates but increased total tokens by 25.0%; see [the measured results and trace observations](benchmarks/2026-11-15-luna-feature.md). This single pair does not establish general savings or regressions for every optimization.
+
+
+## Follow-up to the first measured trial
+
+The first pair exposed raw Jira and worker-only reads by the coordinator, a retyped draft filename error, an unnecessary draft reread with a shell-quoting error, and redundant worker binding checks. Runtime guidance now distinguishes parent/worker reads, requests specific raw fields only for an unresolved question, captures draft stdout for programmatic path selection, and keeps checks at the existing edit/return boundaries. Sequential controller calls can share one code-mode call only when no decision intervenes and failures stop the sequence. No gate, receipt or stale-binding validator changed.
+
+The small fixture's 24 short comments previously forced two pages despite fitting comfortably in one bounded read. Histories of at most 12,000 rendered comment characters now remain inline; larger histories retain complete paged coverage. This uses the existing page budget as a conservative threshold, not a measured universal optimum. Tests cover both projections and refresh preservation. Subsequent matched behavioral runs are needed to assess whether agents follow the guidance and whether savings result.

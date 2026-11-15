@@ -25,7 +25,7 @@ Resolve `SKILL_DIR` (this folder), the target repository and the issue key. If t
 node "$SKILL_DIR/scripts/prepare-ticket.mjs" ABC-123
 ```
 
-The work directory defaults to a persistent cache: take its exact path from stdout, or pass `--out` to use an existing directory the user specified. Read the compact stdout and `manifest.json`, then the manifest’s `review_ticket` and its indexed comment pages (fall back to `ticket.md` for older caches); raw responses stay on disk. Read every comment page once before completing evidence review, record coverage and material decisions in the evidence report, and return to source pages only when needed. On a partial result (exit 2), inspect the recorded errors, continue independent work and disclose material gaps. Never label failed downloads or extractions as reviewed. No videos is a valid result.
+The work directory defaults to a persistent cache: take its exact path from stdout, or pass `--out` to use an existing directory the user specified. Read the compact stdout and `manifest.json`, then the manifest’s `review_ticket` and any indexed comment pages (fall back to `ticket.md` for older caches). Short histories are inline. Leave raw `issue.json` and `comments.json` on disk unless a specific unanswered question requires an omitted field; extract that field only. Read every comment page once before completing evidence review, record coverage and material decisions in the evidence report, and return to source pages only when needed. On a partial result (exit 2), inspect the recorded errors, continue independent work and disclose material gaps. Never label failed downloads or extractions as reviewed. No videos is a valid result.
 
 Explicit controls, given as skill arguments or in conversation:
 

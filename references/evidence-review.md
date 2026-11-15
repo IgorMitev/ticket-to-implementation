@@ -1,6 +1,6 @@
 # Evidence review
 
-Read the manifest’s `review_ticket` and every `comment_pages` entry, recording reviewed page paths and material decisions in `evidence-review.md`. Keep full `ticket.md` as a fallback, not a second mandatory read. For a video worker, supply the compact ticket view, relevant comment paths and user constraints; the main agent owns complete comment coverage.
+Read the manifest’s `review_ticket` including inline comments, plus every `comment_pages` entry when paging is present, recording reviewed page paths and material decisions in `evidence-review.md`. Keep full `ticket.md` as a fallback, not a second mandatory read. For a video worker, supply the compact ticket view, relevant comment paths and user constraints; the main agent owns complete comment coverage.
 
 `attachments` must cover each manifest attachment ID exactly once. Each entry has `id` and `disposition`: `reviewed`, `not_relevant` or `unavailable`. The latter two require `reason`. An `unavailable` attachment, an excluded video, or a partial preparation manifest requires a `missing_evidence` exception. `not_relevant` is not a claim that the attachment was reviewed.
 

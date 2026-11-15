@@ -545,14 +545,31 @@ test('ticket review pages preserve all comments in order and retain full ticket 
   for (const page of view.comment_pages) assert.ok((await readFile(view.review_ticket, 'utf8')).includes(page.path));
   const prior = await readFile(view.comment_pages[0].path, 'utf8');
   const refreshed = await writeTicketReview(out, issue, comments.slice(1, 3), [], {}, [], 'snapshot-two');
-  assert.deepEqual(refreshed.comment_pages.flatMap(p => p.comment_ids), ['1', '2']);
+  assert.deepEqual(refreshed.comment_pages, []);
+  assert.match(await readFile(refreshed.review_ticket, 'utf8'), /Decision 1[\s\S]*Decision 2/);
   assert.equal(await readFile(view.comment_pages[0].path, 'utf8'), prior);
   const mock = jiraMock();
   const prepared = await prepareTicket('APP-123', { out: join(out, 'prepared') }, { env, fetchImpl: mock.fetchImpl });
-  assert.ok(prepared.review_ticket); assert.deepEqual(prepared.comment_pages.flatMap(p => p.comment_ids), ['1', '2']);
+  assert.ok(prepared.review_ticket); assert.deepEqual(prepared.comment_pages, []);
+  assert.match(await readFile(prepared.review_ticket, 'utf8'), /comment 1[\s\S]*comment 2/);
   assert.match(await readFile(prepared.ticket, 'utf8'), /comment 1/);
   const saved = await readFile(prepared.review_ticket, 'utf8');
   const failed = jiraMock({ failComments: true });
   await prepareTicket('APP-123', { out: prepared.work_directory }, { env, fetchImpl: failed.fetchImpl });
   assert.equal(await readFile(prepared.review_ticket, 'utf8'), saved);
+});
+
+
+test('short comment histories stay inline even when they contain more than twenty comments', async t => {
+  const { writeTicketReview } = await import('../scripts/prepare-ticket.mjs');
+  const out = await temporary(t);
+  const comments = Array.from({ length: 24 }, (_, i) => ({ id: String(i + 1), body: doc(`Decision ${i + 1}.`) }));
+  const issue = { key: 'APP-1', fields: { summary: 'Small history' } };
+  const inline = await writeTicketReview(out, issue, comments, [], {}, [], 'small');
+  assert.deepEqual(inline.comment_pages, []);
+  const text = await readFile(inline.review_ticket, 'utf8');
+  for (const comment of comments) assert.ok(text.includes(adf(comment.body)));
+  comments[0].body = doc('Long discussion. '.repeat(1000));
+  const paged = await writeTicketReview(out, issue, comments, [], {}, [], 'large');
+  assert.deepEqual(paged.comment_pages.flatMap(p => p.comment_ids), comments.map(c => c.id));
 });

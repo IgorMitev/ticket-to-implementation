@@ -269,8 +269,18 @@ export function ticketMarkdown(issue, comments, attachments, fieldNames = {}, re
   return rows.join("\n") + "\n";
 }
 
-// Preserve every populated comment in ordered pages; never infer semantic relevance.
+// Page only large histories; preserve every populated comment without relevance filtering.
 export async function writeTicketReview(out, issue, comments, attachments, fieldNames, remoteLinks, snapshot) {
+  const path = join(out, "ticket-review.md");
+  const rendered = comments.filter(c => populated(c.body)).map(comment => ({
+    id: comment.id,
+    text: `### ${comment.author?.displayName ?? "Unknown author"} · ${comment.created ?? ""} · ${comment.id}\n${adf(comment.body)}`,
+  }));
+  // Short histories need neither a separate index nor extra page reads.
+  if (rendered.reduce((total, entry) => total + entry.text.length + 2, 0) <= 12000) {
+    await atomic(path, ticketMarkdown(issue, comments, attachments, fieldNames, remoteLinks));
+    return { review_ticket: path, comment_pages: [] };
+  }
   const directory = join(out, "comment-pages", snapshot);
   await privateDir(directory);
   const pages = [];
@@ -282,13 +292,11 @@ export async function writeTicketReview(out, issue, comments, attachments, field
     pages.push({ path, comment_ids: entries.map(e => e.id) });
     entries = []; size = 0;
   };
-  for (const comment of comments.filter(c => populated(c.body))) {
-    const text = `### ${comment.author?.displayName ?? "Unknown author"} · ${comment.created ?? ""} · ${comment.id}\n${adf(comment.body)}`;
-    if (entries.length && (size + text.length > 12000 || entries.length >= 20)) await flush();
-    entries.push({ id: comment.id, text }); size += text.length;
+  for (const entry of rendered) {
+    if (entries.length && (size + entry.text.length > 12000 || entries.length >= 20)) await flush();
+    entries.push(entry); size += entry.text.length;
   }
   await flush();
-  const path = join(out, "ticket-review.md");
   const index = pages.length ? "\n## Comment review pages\nRead every page before completing evidence review; record reviewed page paths and material decisions. An individual oversized comment remains intact.\n" +
     pages.map(p => `- ${p.path} — comment IDs: ${p.comment_ids.join(", ")}`).join("\n") + "\n" : "";
   await atomic(path, ticketMarkdown(issue, [], attachments, fieldNames, remoteLinks) + index);
