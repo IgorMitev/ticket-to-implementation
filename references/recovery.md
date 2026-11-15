@@ -39,5 +39,6 @@ The controller migrates old state and reopens whatever the current rules require
 - Implementation and verification may reopen so that a handoff with a repository baseline exists. Inspect existing code and stop old workers before resuming.
 - A missing proposal ID reopens clarification for fresh approval.
 - Verification results without receipts must be rerun. Do not synthesize receipts from old logs.
+- A handoff packet without `draft_reports.command` or `return_reports` predates report drafts. Give its worker `workflow.mjs draft KEY --out WORK_DIR --phase PHASE --input BINDING_PATH` and the normal return rules from the implementor brief, or generate a new handoff.
 - State from a newer skill version is refused without being replaced; use the newer skill.
 - After a reset, configure again if the controller asks; the original user scope stays recorded.

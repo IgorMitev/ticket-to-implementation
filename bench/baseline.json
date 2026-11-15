@@ -21,18 +21,18 @@
       "files": 6
     },
     "worker.implementor": {
-      "bytes": 8281,
-      "tokens_est": 2070,
+      "bytes": 8056,
+      "tokens_est": 2014,
       "files": 1
     },
     "worker.implementor_waiver": {
-      "bytes": 12236,
-      "tokens_est": 3059,
+      "bytes": 12011,
+      "tokens_est": 3003,
       "files": 2
     },
     "worker.implementor_browser": {
-      "bytes": 15215,
-      "tokens_est": 3804,
+      "bytes": 14990,
+      "tokens_est": 3748,
       "files": 2
     },
     "worker.video": {

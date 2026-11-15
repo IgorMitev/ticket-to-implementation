@@ -36,7 +36,7 @@ A verification report needs at least one recorded check. For a manual inspection
 
 ## Report
 
-The generated drafts contain every required field. Read [worker-reports.md](worker-reports.md) only when the packet records a reproduction waiver or a rejected report needs explaining. Run the packet's `draft_reports.command`. For a reproduction-waiver assignment resumed after the main agent starts verification, replace only `'--phase' 'implementation'` with `'--phase' 'verification'`, keeping the original binding path; otherwise run it verbatim. Use the returned `drafts` paths exactly, without constructing filenames. Older packets without that command can use `node "$SKILL_DIR/scripts/workflow.mjs" draft KEY --out WORK_DIR --phase PHASE --input BINDING_PATH --format compact`.
+The generated drafts contain every required field. Read [worker-reports.md](worker-reports.md) only when the packet records a reproduction waiver or a rejected report needs explaining. Run the packet's `draft_reports.command`. For a reproduction-waiver assignment resumed after the main agent starts verification, replace only `'--phase' 'implementation'` with `'--phase' 'verification'`, keeping the original binding path; otherwise run it verbatim. Use the returned `drafts` paths exactly, without constructing filenames.
 
 The response includes `draft_contents` matching the saved files. Fill those returned files directly with a file-edit tool or JSON serialization; no separate read or duplicate final report is needed. Generate each draft once unless recovery requires a fresh assignment. If using a shell heredoc, quote its delimiter (`<<'EOF'`) so backticks and dollar signs remain data. Parse the JSON before returning. Return the filled `drafts` paths as the completed reports. Keep evidence inside the ticket work directory. The main agent supplies its phase token and review.
 
@@ -46,7 +46,7 @@ Complete every report named in `return_reports` before finishing:
 - **Reproduction waiver:** return implementation first. After the main agent starts verification, carry out the approved alternative with fresh evidence and return verification. A waiver never skips post-fix verification.
 - **Verification-only assignment:** return verification without editing source.
 
-If the packet predates `return_reports`, use these same rules. A failed or unverified criterion or check, or a missing required report, is a blocker, not a completed assignment.
+A failed or unverified criterion or check, or a missing required report, is a blocker, not a completed assignment.
 
 Before returning, check each report:
 
