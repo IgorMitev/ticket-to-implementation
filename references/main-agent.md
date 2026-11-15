@@ -1,6 +1,6 @@
 # Main-agent workflow
 
-Only the controller writes `progress.json`. CLI output is compact by default and returns `next_phase`, `next_action`, `artifact_directory` and the current `phase_token`. Follow `next_action`, and keep drafts and reports in `artifact_directory`. `--out` selects an existing ticket directory without Jira credentials.
+CLI output is compact by default and returns `next_phase`, `next_action`, `artifact_directory` and the current `phase_token`. Follow `next_action`, and keep drafts and reports in `artifact_directory`. `--out` selects an existing ticket directory without Jira credentials.
 
 Only the main agent runs `configure`, `start`, `handoff`, `block`, `present`, `complete`, `invalidate` and session reset.
 
@@ -19,9 +19,7 @@ Exit 0 means the command succeeded, not that the task is complete. Exit 1 means 
 
 The phases are `evidence_review`, `investigation`, `clarification`, `implementation` and `verification`. Scope `review` ends after investigation, `clarify` ends after clarification, and `implement` requires all five. Later phases report `not_applicable_to_scope`. There is no skip or force-complete action.
 
-Load only the sections for the current phase and request kind. The main agent passes `implementor.md` by path; it need not load the worker brief. Read `recovery.md` only when recovery is needed.
-
-Every `complete` input needs the common fields below plus its phase fields. This is the main-agent entrypoint; worker instructions are supplied by the handoff.
+Load only the sections for the current phase and request kind. Every `complete` input needs the common fields below plus its phase fields.
 
 ## Common result fields
 
@@ -80,7 +78,7 @@ If the ticket has no video attachments, include `no_video_reason`.
 
 All kinds need `current_behavior` text and `relevant_files`, an array of repository-relative paths investigated (it may be empty for a new project). Feature and mixed also need `feature_analysis` and a `constraints` array.
 
-Before starting bug or mixed investigation, complete the [browser and server preflight](browser-reproduction.md#preflight). Bug and mixed require fresh local runtime reproduction before completing investigation or changing implementation. Read [local-reproduction.md](local-reproduction.md) for the result contract. If reproduction is blocked or unsuccessful, the specific limitation requires explicit user permission through [reproduction-waiver.md](reproduction-waiver.md).
+Complete the [browser and server preflight](browser-reproduction.md#preflight) early, before starting bug or mixed investigation; evidence review itself does not require reproduction. Bug and mixed require fresh local runtime reproduction of the reported sequence before completing investigation or changing implementation. Ticket files, recordings and code inspection guide the attempt but are not local runtime evidence. Transient QA data, an uncertain setup or a suspected obvious cause are reasons to investigate or ask for access, not to omit reproduction. Read [local-reproduction.md](local-reproduction.md) for the result contract. If reproduction is blocked or unsuccessful, the specific limitation requires explicit user permission through [reproduction-waiver.md](reproduction-waiver.md); the agent cannot waive it.
 
 If valid local reproduction evidence was already collected during this run, reuse it. Entering the investigation phase alone does not require another attempt. Confirm that the evidence applies to the current repository, code, environment and reported condition, meets the result contract, and is saved in the active artifact directory; reference it from `reproduction.md` and the investigation result. Repeat a pre-fix attempt only to address a specific evidence gap or changed condition, and record the reason. This reuse does not replace the required post-fix reproduction recheck.
 
@@ -124,7 +122,7 @@ A pending proposal is returned by `status` and `session continue`, so an unchang
 
 ## Implementation
 
-The main agent owns user interaction, scope decisions, workflow transitions and review. One implementor owns source edits and checks. Scripts prepare and validate handoffs; the host launches workers.
+One implementor owns source edits and checks; the main agent keeps user interaction, scope decisions, workflow transitions and review.
 
 ### Assign an implementor
 
@@ -133,9 +131,9 @@ The main agent owns user interaction, scope decisions, workflow transitions and 
 3. Run `node "$SKILL_DIR/scripts/workflow.mjs" handoff ABC-123 --out "$WORK_DIR" --phase implementation --input /path/handoff-input.json`. The returned `assignment` gives the handoff path, binding path, assignment ID and output directory. The packet already contains the approved criteria, decisions, reproduction details and references to further evidence. For browser rechecks, ensure those references identify the Chrome MCP integration, intended session/page and page ownership; transfer browser control explicitly. The worker must confirm access in its own context.
 4. Run `node "$SKILL_DIR/scripts/workflow.mjs" assert ABC-123 --out "$WORK_DIR" --phase implementation` before delegating.
 5. Spawn one implementor with the prompt below, supplying only the packet, the returned `assignment.worker_brief` path and repository instructions. Do not open the worker brief in the main agent; the worker loads it. Prefer no inherited conversation; if the host forces inheritance, say that context isolation is limited. Record the host worker ID in a note in the assignment directory so the worker can be resumed.
-6. While it works, handle user interaction and blockers, and do not edit the repository. Use completion notifications or a bounded wait consistent with host update requirements; avoid repeated short polling and redundant status nudges. Do not pull its exploration or logs into the main conversation. Scope questions go back to the user; a revised proposal needs new approval before coding resumes.
+6. While it works, handle user interaction and blockers, and do not edit the repository. Wait for completion notifications or use bounded waits, without short polling or status nudges, and do not pull its exploration or logs into the main conversation. A revised proposal needs new approval before coding resumes.
 
-> Implement the approved ticket in HANDOFF_PATH. Follow WORKER_BRIEF_PATH and repository instructions. Complete every report named in the packet's `return_reports`, or return a bound blocker. Return their paths with a concise summary. The main agent owns user interaction and workflow transitions.
+> Implement the approved ticket in HANDOFF_PATH. Follow WORKER_BRIEF_PATH and repository instructions. Complete every report named in the packet's `return_reports`, or return a bound blocker, and return their paths with a concise summary.
 
 Always delegate implementation, however small the change. Size, cost, token budget or expected speed never justify implementing in the main agent. Only if subagents are unavailable or cannot access the repository, say so and generate the handoff with `mode: "main_agent"` and a `reason` naming that limitation, then follow the implementor brief yourself with the same binding checks, reports and verification. If the user requires delegation, block instead.
 
@@ -146,19 +144,17 @@ Use this checklist for normal acceptance; load the worker schema only when a val
 - Compare the diff with approved criteria and baseline user edits; inspect relevant evidence and preserve unrelated changes.
 - Require a nonempty summary and artifacts. Relative paths resolve against the active artifact directory, not the assignment directory; absolute evidence paths avoid ambiguity.
 - Implementation must cover every agreed ID in `addressed_criteria` and every changed file in `changed_files`. No-change results require `no_change_reason` and a `no_code_change` exception.
-- Verification must cover each agreed ID exactly once with a passed result and evidence, plus registered receipts for this assignment and unchanged code. Inspect check logs; failed or unverified criteria block completion. Bug/mixed work also needs its reproduction recheck; waiver cases follow the verification section below.
+- Verification must cover each agreed ID exactly once with a passed result and evidence, plus registered receipts for this assignment and unchanged code. Inspect check logs; a failed or unverified criterion blocks completion. Bug/mixed work also needs its reproduction recheck.
 
-For each accepted report, preserve its binding (`assignment_id`, `proposal_id`, `requirements_sha256`, any `implementation_sha256`) and `resolved_questions`. Add only the current `phase_token`, your actual `parent_review`, and for implementation `repository_review`. Never repair a stale binding. Submit implementation with `complete`, then start verification. Use [worker-reports.md](worker-reports.md) only to diagnose an unexpected report defect; controller validation remains authoritative.
+For each report, preserve its binding (`assignment_id`, `proposal_id`, `requirements_sha256`, any `implementation_sha256`) and `resolved_questions`. Add only the current `phase_token`, your actual `parent_review`, and for implementation `repository_review`, to the returned report itself rather than a copy. Never repair a stale binding or edit an accepted report or its hashed evidence. Submit implementation with `complete`, then start verification. Use [worker-reports.md](worker-reports.md) only to diagnose an unexpected report defect; controller validation remains authoritative.
 
 For blockers, interrupted or lost workers, replacement, or scope changes, follow [worker problems](recovery.md#worker-problems).
 
 ## Verification
 
-Submit the worker's prepared verification report when its evidence still matches the code. Rerun checks only when changes or unresolved concerns justify it. With a reproduction waiver, do not wait for that report before accepting implementation: resume the worker once verification has started so it can perform the approved alternative and produce fresh evidence.
+Without a reproduction waiver, the initial worker return includes the verification report: submit it unchanged apart from the review fields when its evidence still matches the code, and do not request a second run solely because verification has started. Rerun checks only when changes or unresolved concerns justify it. With a waiver, accept implementation first, then resume the worker once verification has started so it performs the approved alternative with fresh evidence; see [the waiver requirements](reproduction-waiver.md#later-phases).
 
 For browser work, perform the [ownership and cleanup check](browser-reproduction.md#browser-ownership-and-cleanup) before final handback, and disclose any retained pages or cleanup limitations.
-
-Add the phase token and `parent_review` and submit the unchanged worker verification findings. Add review fields to the returned unaccepted report itself; do not create a second copy solely for parent review. Never edit an accepted report or its hashed evidence. With no reproduction waiver, expect both reports from the initial worker return; do not request a second run solely because verification has now started. With a waiver, follow [the waiver requirements](reproduction-waiver.md#later-phases).
 
 Completion returns `done: true` only within the configured scope, with `outcome` `complete` or `complete_with_exceptions`. Report the exceptions of the latter explicitly.
 

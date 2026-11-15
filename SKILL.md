@@ -13,7 +13,7 @@ The workflow controller validates phase order and structured results, not whethe
 
 Keep answers, questions, progress updates and handoff summaries short. Lead with the result, decision, blocker or question, and ask only the questions needed to move forward. Keep detailed evidence and logs in linked artifacts, but never drop required acceptance criteria, approval details or material limitations. Expand only when the user asks or a decision needs the detail.
 
-Save a concise checkpoint (findings, open questions, next steps) after at most 15 exploration tool calls and before any further large investigation, then continue from it rather than restarting. Keep worker return summaries within roughly 250 words, linking full evidence. Keep detailed findings in the phase artifacts; updates and checkpoints should reference them and record only new decisions, blockers and next steps rather than repeat requirements or logs. Checkpoints support recovery; writing one does not evict earlier context. When the host exposes context growth, also checkpoint before a large output batch; call count is the fallback.
+Save a concise checkpoint (findings, open questions, next steps) after at most 15 exploration tool calls and before any further large investigation, then continue from it rather than restarting. Keep worker return summaries within roughly 250 words, linking full evidence. Checkpoints and updates reference phase artifacts and record only new decisions, blockers and next steps. Checkpoints support recovery; writing one does not evict earlier context. When the host exposes context growth, also checkpoint before a large output batch; call count is the fallback.
 
 The worker briefs in `references/` already carry both rules. Add them to any other delegated task, such as investigation, reproduction or independent review.
 
@@ -36,9 +36,9 @@ Both accept `--out WORK_DIR`, which also removes the need for Jira environment v
 
 ## Run the workflow
 
-Read the command sequence and current-phase sections of [main-agent.md](references/main-agent.md) before advancing the ticket. Load conditional bug/waiver and recovery references only when relevant. CLI output is compact by default; `--format full` exposes detailed state when needed. Configure the kind, scope, repository and original user request with `workflow.mjs configure`. Scope `review` stops after investigation, `clarify` stops after requirements alignment, and `implement` runs the full flow. Do not widen scope without a new user instruction.
+Read the command sequence and current-phase sections of [main-agent.md](references/main-agent.md) before advancing the ticket; it defines configuration, scopes, result fields and each phase's procedure. Load conditional bug/waiver and recovery references only when relevant. CLI output is compact by default; `--format full` exposes detailed state when needed. Do not widen scope without a new user instruction.
 
-Follow the controller's `next_phase` and `next_action`; `workflow.mjs status` shows the saved state. Only the scripts write progress, phase status and tokens, so never hand-edit `progress.json`. Write drafts and evidence in the returned `artifact_directory`, and never edit accepted results in place. Record blockers through the controller.
+Follow the controller's `next_phase` and `next_action`. Only the scripts write progress, phase status and tokens, so never hand-edit `progress.json`. Record blockers through the controller.
 
 When requirements or evidence change, a command is rejected as stale, a worker is lost, or a refresh fails or migrates saved state, stop affected workers and follow [recovery.md](references/recovery.md).
 
@@ -50,7 +50,7 @@ Inspect relevant non-video attachments with appropriate tools and list unsupport
 
 For substantial video evidence, delegate one focused reviewer with [video-review.md](references/video-review.md), giving it the ticket path, manifest path, skill path and output path. Review a few images directly. Keep raw image exploration in the reviewer's context: read its findings, and open original frames yourself only when a decision needs verification. If subagents or image tools are unavailable, say so. Never claim visual review from metadata, and do not substitute a remote vision API for local extraction. The main agent owns user questions and resolves conflicting evidence.
 
-Complete `evidence_review` with the [evidence result](references/main-agent.md#evidence-review), accounting for every attachment and disclosing missing evidence. Preparation alone does not complete review.
+Preparation alone does not complete review; account for every attachment in the [evidence result](references/main-agent.md#evidence-review).
 
 For a user-supplied recording without a Jira ticket, run `extract-video.mjs FILE --out NEW_DIR` and follow `video-review.md` with the user's goal in place of ticket text. This is outside the ticket workflow, so do not invent a ticket or report workflow completion.
 
@@ -58,33 +58,28 @@ For a user-supplied recording without a Jira ticket, run `extract-video.mjs FILE
 
 Decide whether this is a bug, feature or mixed request from the actual request and evidence.
 
-Perform browser/server preflight early, but normally wait until investigation starts to reproduce the defect. Evidence review does not require local reproduction. Reuse valid reproduction evidence already collected during this run according to the [investigation procedure](references/main-agent.md#investigation).
-
-- **Bug:** local runtime reproduction is mandatory before completing investigation or changing implementation code. Before starting bug or mixed investigation, follow the [Chrome DevTools MCP and server preflight](references/browser-reproduction.md#preflight). If a dev server is needed, the user must supply and run it for the entire task; agents must never start or restart it. Execute the reported sequence and capture fresh screenshots or logs in the active artifact directory, referenced from `reproduction.md`; the [investigation result](references/main-agent.md#investigation) lists what to record. Ticket files, recordings and code inspection guide the attempt but are not local runtime evidence. Transient QA data, an uncertain setup or a suspected obvious cause are reasons to investigate or ask for access, not to omit reproduction.
+- **Bug or mixed:** local runtime reproduction is mandatory. Follow the [investigation procedure](references/main-agent.md#investigation), which covers browser and server preflight, reuse of earlier evidence and the user-permission waiver. Never relabel a bug as a feature to bypass reproduction. Mixed requests also give the enhancement its own acceptance criteria.
 - **Feature:** inspect current user flows, relevant code, reusable patterns, data contracts, permissions and integration constraints. Record findings and likely touchpoints in `investigation.md`.
-- **Mixed:** reproduce the defect as for a bug and give the enhancement its own acceptance criteria. Never relabel a bug as a feature to bypass reproduction.
 
 Ask for missing access, test data, repository location or environment details as soon as they block useful work, and continue independent investigation while waiting. Use the host's secure credential mechanism, never a chat request for tokens. Do not access production or perform destructive environment resets to reproduce.
 
-Delegate codebase investigation only when it is substantial and separable. A reproduction worker may run alongside it, but give one worker exclusive ownership of browser automation and the session; the user owns the dev server. No worker should edit overlapping files or ask the user competing questions.
-
-If reproduction fails or cannot be attempted, investigation completes only with explicit user permission for that specific limitation. Follow [reproduction-waiver.md](references/reproduction-waiver.md); the agent cannot skip this on its own.
+Delegate codebase investigation only when it is substantial and separable. A reproduction worker may run alongside it with exclusive ownership of browser automation; the user owns the dev server. No worker should edit overlapping files or ask the user competing questions.
 
 ## Clarify and align
 
-Read [clarification-guide.md](references/clarification-guide.md) and run a focused grilling session on the gathered evidence. Ask only about unresolved information; do not manufacture questions. Write `agreed-requirements.md` in the guide's brief format, with testable acceptance criteria and their verification plans. Record material open questions with `block`; answers must cite actual user responses.
+Read [clarification-guide.md](references/clarification-guide.md) and run a focused grilling session on the gathered evidence. Ask only about unresolved information; do not manufacture questions. Write `agreed-requirements.md` in the guide's brief format, with testable acceptance criteria and their verification plans.
 
-Then follow the [clarification procedure](references/main-agent.md#clarification): present the concrete summary and wait for explicit approval. This applies even when the ticket is clear or the user asked to implement, because invoking the skill authorizes only investigation and preparing that summary. A changed proposal needs fresh approval.
+Then follow the [clarification procedure](references/main-agent.md#clarification) and wait for explicit approval of the presented summary, even when the ticket is clear or the user asked to implement: invoking the skill authorizes only investigation and preparing that summary.
 
 ## Implement and verify
 
-After approval, follow [implementation](references/main-agent.md#implementation) to delegate implementation to one implementor, even for small changes, with the generated handoff and its returned `worker_brief` path (loaded by the worker only), then review its results.
+After approval, follow [implementation](references/main-agent.md#implementation) to delegate to one implementor, even for small changes, then review its results.
 
 For bugs, add a meaningful regression test where practical and repeat the original reproduction after the fix. For features, test the acceptance criteria, relevant user flows, edge cases and affected existing behavior. Run the repository-required checks appropriate to the change. If local execution is blocked, distinguish code and test evidence from unverified runtime behavior.
 
 For a substantial change, an independent reviewer is useful: give it the agreed brief, the diff and the test results, ask for defects and missing criteria, and resolve meaningful findings. Skip it for small changes, and do not start review loops without a stopping condition.
 
-Write `verification.md`. A failed or unverified criterion blocks verification; it is never marked complete. Report the controller's `done` and `outcome` with all exceptions and residual limitations; `complete_with_exceptions` is not unqualified verification.
+A failed or unverified criterion blocks verification; it is never marked complete. Report the controller's `done` and `outcome` with all exceptions and residual limitations; `complete_with_exceptions` is not unqualified verification.
 
 Jira comments or status changes, PR publication, deployment and external messages need authorization in the user's task. Invoking this skill does not request them.
 
