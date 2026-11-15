@@ -59,7 +59,8 @@ The handoff links `repository_baseline`: branch, commit, index digest and file h
 
 - Git repositories cover tracked and non-ignored untracked files; use the repository root. Ignored dependencies, build output and external symlink targets are not hashed.
 - Non-Git directories use a filesystem snapshot excluding `.git`, `node_modules` and the dedicated ticket work directory.
-- Git submodules and untracked nested Git repositories cause a clear refusal. Move unrelated clones outside the configured repository or add those untracked clones to `.gitignore`; do not ignore code needed by the task just to bypass coverage. Submodules need separate verification.
+- Registered Git submodules are recorded as pinned index commits (gitlinks), without traversing their contents. Changes to those indexed commits are tracked; edits, untracked files and checkout changes inside submodules are ignored and need separate verification.
+- Untracked nested Git repositories still cause a clear refusal. Move unrelated clones outside the configured repository or add those untracked clones to `.gitignore`; do not ignore code needed by the task just to bypass coverage.
 - Snapshots limit traversal to 20,000 files.
 - The repository must not be inside the ticket work directory; configure and snapshots reject that layout.
 - During active work, covered repository drift reopens implementation and verification. After the scoped workflow completes, staging or committing unchanged files preserves completion; actual covered file changes still reopen it.

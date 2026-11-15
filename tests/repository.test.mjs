@@ -69,3 +69,38 @@ test('cleanup validates inputs and protects URL-encoded Markdown references', as
   await writeFile(join(root, 'review.md'), '[Evidence](evidence/detail%2012-16/frame.png)');
   assert.deepEqual((await cleanup(root, { apply: true })).removed, []);
 });
+
+test('snapshot pins registered submodules and ignores their working trees', async t => {
+  const root = await mkdtemp(join(tmpdir(), 'repo-submodule-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const parent = join(root, 'parent');
+  const source = join(root, 'source');
+  await mkdir(parent); await mkdir(source);
+  const git = (repo, args) => execFileSync('git', ['-C', repo, ...args], { stdio: 'pipe' }).toString().trim();
+  const commit = repo => git(repo, ['-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.test', 'commit', '-am', 'fixture']);
+  git(source, ['init', '-b', 'main']);
+  await writeFile(join(source, 'file'), 'initial');
+  git(source, ['add', '.']); commit(source);
+  git(parent, ['init', '-b', 'main']);
+  await writeFile(join(parent, 'app.js'), 'original');
+  git(parent, ['-c', 'protocol.file.allow=always', 'submodule', 'add', source, 'repos/customer module']);
+  git(parent, ['add', '.']); commit(parent);
+  const module = join(parent, 'repos/customer module');
+  const before = await repositorySnapshot(parent);
+  assert.deepEqual(before.files['repos/customer module'], { submodule: git(module, ['rev-parse', 'HEAD']) });
+  await writeFile(join(module, 'file'), 'internal edit');
+  await writeFile(join(module, 'untracked'), 'ignored');
+  assert.equal((await repositorySnapshot(parent)).sha256, before.sha256);
+  commit(module);
+  // A different checkout alone is ignored until the parent stages its pointer.
+  assert.equal((await repositorySnapshot(parent)).sha256, before.sha256);
+  git(parent, ['add', 'repos/customer module']);
+  const after = await repositorySnapshot(parent);
+  assert.throws(() => validateRepositoryChanges(before, after, [], 'reviewed'), /Unreported repository changes: repos\/customer module/);
+  assert.deepEqual(validateRepositoryChanges(before, after, ['repos/customer module'], 'reviewed'), ['repos/customer module']);
+  await writeFile(join(parent, 'app.js'), 'implementation');
+  const edited = await repositorySnapshot(parent);
+  assert.throws(() => validateRepositoryChanges(after, edited, [], 'reviewed'), /Unreported repository changes: app.js/);
+  await rm(module, { recursive: true, force: true });
+  assert.deepEqual((await repositorySnapshot(parent)).files['repos/customer module'], after.files['repos/customer module']);
+});

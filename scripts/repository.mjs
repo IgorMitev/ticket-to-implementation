@@ -21,6 +21,7 @@ export async function repositorySnapshot(repository, excludedDirectory) {
     head = null,
     index = null,
     working_tree = null,
+    submodules = new Map(),
     paths;
   try {
     const top = (await git(["rev-parse", "--show-toplevel"])).trim();
@@ -41,13 +42,20 @@ export async function repositorySnapshot(repository, excludedDirectory) {
       "--porcelain=v1",
       "-z",
       "--untracked-files=all",
+      "--ignore-submodules=all",
       "--",
       ".",
     ];
     if (excluded && inside(root, excluded))
       statusArgs.push(":(exclude,literal)" + relative(root, excluded));
     working_tree = (await git(statusArgs)).split("\0").filter(Boolean);
-    index = hashObject(await git(["ls-files", "--stage", "-z"]));
+    const stage = await git(["ls-files", "--stage", "-z"]);
+    index = hashObject(stage);
+    // Pin indexed gitlinks without descending into their working trees.
+    for (const entry of stage.split("\0").filter(Boolean)) {
+      const match = /^160000 ([0-9a-f]+) \d+\t([\s\S]+)$/.exec(entry);
+      if (match) submodules.set(match[2], match[1]);
+    }
     paths = [
       ...new Set(
         (
@@ -93,6 +101,10 @@ export async function repositorySnapshot(repository, excludedDirectory) {
     const path = resolve(root, name);
     if (!inside(root, path)) throw new Error("Repository path escapes root");
     if (excluded && inside(excluded, path)) continue;
+    if (submodules.has(name)) {
+      files[name] = { submodule: submodules.get(name) };
+      continue;
+    }
     try {
       const info = await lstat(path);
       if (info.isSymbolicLink()) files[name] = { link: await readlink(path) };
