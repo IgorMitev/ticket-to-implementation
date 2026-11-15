@@ -1,18 +1,18 @@
 {
   "loads": {
     "main.feature": {
-      "bytes": 30991,
-      "tokens_est": 7748,
+      "bytes": 28973,
+      "tokens_est": 7243,
       "files": 3
     },
     "main.bug": {
-      "bytes": 42120,
-      "tokens_est": 10530,
+      "bytes": 40102,
+      "tokens_est": 10026,
       "files": 5
     },
     "main.bug_waiver": {
-      "bytes": 45739,
-      "tokens_est": 11435,
+      "bytes": 43721,
+      "tokens_est": 10930,
       "files": 6
     },
     "worker.implementor": {
@@ -32,7 +32,7 @@
     }
   },
   "safeguards": {
-    "checked": 18,
+    "checked": 20,
     "missing": []
   },
   "cli": {
