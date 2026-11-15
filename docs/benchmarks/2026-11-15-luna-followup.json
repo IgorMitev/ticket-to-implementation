@@ -1,0 +1,246 @@
+{
+  "baseline_commit": "9349dd21345695e6a0eb74ad932becb1805bae83",
+  "candidate_commit": "aaf2e59",
+  "model": "gpt-6-luna",
+  "effort": "medium",
+  "paired_runs": 2,
+  "all_independent_checks_passed": true,
+  "means": [
+    {
+      "metric": "Cumulative input",
+      "main_mean": 1336622.0,
+      "candidate_mean": 1605018.5,
+      "change_percent": 20.080209662866544
+    },
+    {
+      "metric": "Cached input",
+      "main_mean": 1248192.0,
+      "candidate_mean": 1514304.0,
+      "change_percent": 21.319796954314718
+    },
+    {
+      "metric": "Uncached input",
+      "main_mean": 88430.0,
+      "candidate_mean": 90714.5,
+      "change_percent": 2.5833992988804733
+    },
+    {
+      "metric": "Output",
+      "main_mean": 13746.0,
+      "candidate_mean": 16924.0,
+      "change_percent": 23.119452931761963
+    },
+    {
+      "metric": "Total tokens",
+      "main_mean": 1350368.0,
+      "candidate_mean": 1621942.5,
+      "change_percent": 20.1111474797981
+    },
+    {
+      "metric": "Peak request input",
+      "main_mean": 49031.0,
+      "candidate_mean": 55329.5,
+      "change_percent": 12.845954600150922
+    },
+    {
+      "metric": "Top-level tool calls",
+      "main_mean": 37.5,
+      "candidate_mean": 43.0,
+      "change_percent": 14.666666666666671
+    }
+  ],
+  "runs": {
+    "main-2": {
+      "sessions": [
+        {
+          "role": "main",
+          "model": "gpt-6-luna",
+          "usage": {
+            "input_tokens": 968226,
+            "cached_input_tokens": 914048,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 10550,
+            "reasoning_output_tokens": 1506,
+            "total_tokens": 978776
+          },
+          "uncached_input_tokens": 54178,
+          "peak_request_input_tokens": 49235,
+          "usage_updates": 28,
+          "tool_calls": 25
+        },
+        {
+          "role": "implementor",
+          "model": "gpt-6-luna",
+          "usage": {
+            "input_tokens": 249171,
+            "cached_input_tokens": 214400,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 4180,
+            "reasoning_output_tokens": 649,
+            "total_tokens": 253351
+          },
+          "uncached_input_tokens": 34771,
+          "peak_request_input_tokens": 32904,
+          "usage_updates": 10,
+          "tool_calls": 9
+        }
+      ],
+      "totals": {
+        "input_tokens": 1217397,
+        "cached_input_tokens": 1128448,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 14730,
+        "reasoning_output_tokens": 2155,
+        "total_tokens": 1232127
+      },
+      "uncached_input_tokens": 88949,
+      "peak_request_input_tokens": 49235,
+      "usage_updates": 38,
+      "tool_calls": 34
+    },
+    "main-3": {
+      "sessions": [
+        {
+          "role": "main",
+          "model": "gpt-6-luna",
+          "usage": {
+            "input_tokens": 1165321,
+            "cached_input_tokens": 1110016,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 9283,
+            "reasoning_output_tokens": 858,
+            "total_tokens": 1174604
+          },
+          "uncached_input_tokens": 55305,
+          "peak_request_input_tokens": 48827,
+          "usage_updates": 34,
+          "tool_calls": 30
+        },
+        {
+          "role": "implementor",
+          "model": "gpt-6-luna",
+          "usage": {
+            "input_tokens": 290526,
+            "cached_input_tokens": 257920,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 3479,
+            "reasoning_output_tokens": 303,
+            "total_tokens": 294005
+          },
+          "uncached_input_tokens": 32606,
+          "peak_request_input_tokens": 30620,
+          "usage_updates": 12,
+          "tool_calls": 11
+        }
+      ],
+      "totals": {
+        "input_tokens": 1455847,
+        "cached_input_tokens": 1367936,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 12762,
+        "reasoning_output_tokens": 1161,
+        "total_tokens": 1468609
+      },
+      "uncached_input_tokens": 87911,
+      "peak_request_input_tokens": 48827,
+      "usage_updates": 46,
+      "tool_calls": 41
+    },
+    "candidate-2": {
+      "sessions": [
+        {
+          "role": "main",
+          "model": "gpt-6-luna",
+          "usage": {
+            "input_tokens": 1307724,
+            "cached_input_tokens": 1255168,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 12583,
+            "reasoning_output_tokens": 2448,
+            "total_tokens": 1320307
+          },
+          "uncached_input_tokens": 52556,
+          "peak_request_input_tokens": 54462,
+          "usage_updates": 36,
+          "tool_calls": 33
+        },
+        {
+          "role": "implementor",
+          "model": "gpt-6-luna",
+          "usage": {
+            "input_tokens": 383013,
+            "cached_input_tokens": 347648,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 5422,
+            "reasoning_output_tokens": 1271,
+            "total_tokens": 388435
+          },
+          "uncached_input_tokens": 35365,
+          "peak_request_input_tokens": 32795,
+          "usage_updates": 15,
+          "tool_calls": 14
+        }
+      ],
+      "totals": {
+        "input_tokens": 1690737,
+        "cached_input_tokens": 1602816,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 18005,
+        "reasoning_output_tokens": 3719,
+        "total_tokens": 1708742
+      },
+      "uncached_input_tokens": 87921,
+      "peak_request_input_tokens": 54462,
+      "usage_updates": 51,
+      "tool_calls": 47
+    },
+    "candidate-3": {
+      "sessions": [
+        {
+          "role": "main",
+          "model": "gpt-6-luna",
+          "usage": {
+            "input_tokens": 1281502,
+            "cached_input_tokens": 1219584,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 11642,
+            "reasoning_output_tokens": 1497,
+            "total_tokens": 1293144
+          },
+          "uncached_input_tokens": 61918,
+          "peak_request_input_tokens": 56197,
+          "usage_updates": 33,
+          "tool_calls": 30
+        },
+        {
+          "role": "implementor",
+          "model": "gpt-6-luna",
+          "usage": {
+            "input_tokens": 237798,
+            "cached_input_tokens": 206208,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 4201,
+            "reasoning_output_tokens": 788,
+            "total_tokens": 241999
+          },
+          "uncached_input_tokens": 31590,
+          "peak_request_input_tokens": 30123,
+          "usage_updates": 10,
+          "tool_calls": 9
+        }
+      ],
+      "totals": {
+        "input_tokens": 1519300,
+        "cached_input_tokens": 1425792,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 15843,
+        "reasoning_output_tokens": 2285,
+        "total_tokens": 1535143
+      },
+      "uncached_input_tokens": 93508,
+      "peak_request_input_tokens": 56197,
+      "usage_updates": 43,
+      "tool_calls": 39
+    }
+  }
+}
