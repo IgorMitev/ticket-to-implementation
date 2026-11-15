@@ -9,7 +9,7 @@ Only the main agent runs `configure`, `start`, `handoff`, `block`, `present`, `c
 ```sh
 node "$SKILL_DIR/scripts/workflow.mjs" configure ABC-123 --out "$WORK_DIR" --input /path/request.json --format compact
 node "$SKILL_DIR/scripts/workflow.mjs" status ABC-123 --out "$WORK_DIR" --format compact
-node "$SKILL_DIR/scripts/workflow.mjs" start ABC-123 --out "$WORK_DIR" --phase evidence_review --format compact
+node "$SKILL_DIR/scripts/workflow.mjs" start ABC-123 --out "$WORK_DIR" --phase evidence_review --draft --response '{phase}-draft-response.json' --format compact
 node "$SKILL_DIR/scripts/workflow.mjs" complete ABC-123 --out "$WORK_DIR" --phase evidence_review --input /path/evidence-result.json --format compact
 ```
 
@@ -55,9 +55,11 @@ Reconfiguring with a changed kind, scope, repository or request invalidates the 
 
 ## Draft reports
 
-Batch the phase’s `start` then `draft` commands in one code-mode call when no intervening decision is needed; stop on rejection. After `start`, run `workflow.mjs draft ABC-123 --out WORK_DIR --phase PHASE --format compact` to create a new report skeleton. The returned `drafts` maps phases to file paths; `draft_contents` contains the same skeletons, so a separate file read is unnecessary. Generate once per report, fill that file and submit its returned path; do not recreate it under a second filename. Early-phase drafts carry the current token; worker drafts require `--input BINDING_PATH`, carry the original binding, and omit the main agent’s token and review. Implementation produces both worker drafts unless a reproduction waiver defers verification.
+For a new evidence-review, investigation or clarification report, use `start --phase PHASE --draft --response '{phase}-draft-response.json' --format compact`. It starts that phase and creates its draft under the same lock, with the normal phase-order and approval checks. Implementation and verification still use their handoff and worker drafts.
 
-Capture the draft command’s JSON stdout to a known response file (shell `>`, then print it once). When editing, parse that saved response and select `drafts[PHASE]` and `draft_contents[PHASE]` programmatically; do not retype generated filenames or reread the skeleton. Reuse an unsubmitted draft rather than generating another. Fill JSON with a file-edit tool or a script using JSON serialization. If using shell heredocs, quote the delimiter (`<<'EOF'`) so backticks and dollar signs remain data; never interpolate ticket text into shell commands. Parse the saved JSON before submitting it. Create the referenced evidence files before submitting. Fill findings and actual responses, then use the normal `present`/`complete` procedure. Drafts cannot pass validation unchanged. They never supply approval, mark checks passed, refresh an old report or overwrite accepted files. A pending proposal must use its recorded draft. On stale tokens or bindings, follow recovery; do not copy a new token onto old evidence.
+`draft_response` points to saved JSON containing `drafts` and `draft_contents`, also returned on stdout. Parse that file to select the report path and skeleton by phase; do not retype generated filenames or reread skeletons. Fill the report using JSON serialization and create its referenced evidence before submitting. The response file is a lookup, not evidence or approval. `--response` accepts only a filename, expands `{phase}`, and refuses overwrites. On resume, reuse the existing unsubmitted report; a pending proposal must use its recorded draft. After recovery, choose a fresh response filename and follow the new token/binding instead of relabelling old evidence.
+
+Plain `start` remains available when no new draft is needed. `draft --phase PHASE --response FILENAME` creates one for an already-started phase; workers also supply `--input BINDING_PATH`. Drafts remain incomplete and cannot pass unchanged. They never grant approval, refresh bindings or overwrite accepted reports. Parse filled JSON before the normal `present`/`complete` procedure. If using shell heredocs, quote the delimiter (`<<'EOF'`) so ticket text stays data.
 
 ## Evidence review
 

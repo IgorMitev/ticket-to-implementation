@@ -878,7 +878,9 @@ test('waiver drafts defer verification until its active phase and preserve alter
   verificationArgs[verificationArgs.indexOf('--phase') + 1] = 'verification';
   assert.throws(() => runDraft(verificationArgs), e => e.status === 1 && /Earlier required/.test(e.stderr));
   await f.implementation(); await f.start('verification');
-  assert.throws(() => runDraft(packet.draft_reports.args), e => e.status === 1 && /Earlier required/.test(e.stderr));
+  const oldPhaseArgs = [...packet.draft_reports.args];
+  oldPhaseArgs[oldPhaseArgs.indexOf('--response') + 1] = 'unused-response.json';
+  assert.throws(() => runDraft(oldPhaseArgs), e => e.status === 1 && /Earlier required/.test(e.stderr));
   const resumed = runDraft(verificationArgs);
   assert.deepEqual(Object.keys(resumed.drafts), ['verification']);
   const v = await json(resumed.drafts.verification);
@@ -932,8 +934,8 @@ test('handoff supplies executable draft command, confined worker paths and compl
     assert.ok((await realpath(path)).startsWith((await realpath(s.assignment.directory)) + '/'));
     assert.equal((await json(path)).assignment_id, s.assignment.assignment_id);
   }
-  const again = JSON.parse(execFileSync(packet.draft_reports.executable, packet.draft_reports.args, { encoding: 'utf8' }));
-  assert.notEqual(again.drafts.implementation, run.drafts.implementation);
+  assert.deepEqual((await json(run.draft_response)).drafts, run.drafts);
+  assert.throws(() => execFileSync(packet.draft_reports.executable, packet.draft_reports.args, { stdio: 'pipe' }), e => e.status === 1 && /response already exists/.test(e.stderr));
   await f.call('block', { phase: 'implementation', input: await f.input({ reason: 'Replace stopped worker', questions: [] }) });
   await f.handoff();
   assert.throws(() => execFileSync(packet.draft_reports.executable, packet.draft_reports.args, { stdio: 'pipe' }), e => e.status === 1 && /Stale.*binding/.test(e.stderr));
@@ -954,4 +956,37 @@ test('approved implementation context is frozen, passed to workers, and optional
   const old = await json((await legacy.handoff()).assignment.path);
   assert.equal(old.requirements.implementation_context, undefined);
   assert.ok(old.references.clarification.artifacts.length);
+});
+
+test('start with drafts preserves phase gates and saves a confined non-overwriting response', async t => {
+  const f = await fixture(t);
+  await assert.rejects(f.call('start', { phase: 'implementation', draft: true }), /only supported/);
+  await assert.rejects(f.call('start', { phase: 'investigation', draft: true }), /Earlier required/);
+  await assert.rejects(f.call('start', { phase: 'evidence_review', draft: true, response: '../outside.json' }), /filename/);
+  const started = JSON.parse(execFileSync(process.execPath, [new URL('../scripts/workflow.mjs', import.meta.url).pathname,
+    'start', 'APP-1', '--out', f.out, '--phase', 'evidence_review', '--draft', '--response', '{phase}-response.json', '--format', 'compact'], { encoding: 'utf8' }));
+  assert.equal(started.draft_contents.evidence_review.phase_token, started.phase_token);
+  assert.equal(started.draft_response, join(started.artifact_directory, 'evidence_review-response.json'));
+  assert.deepEqual(await json(started.draft_response), { drafts: started.drafts, draft_contents: started.draft_contents });
+  const before = await readFile(join(f.out, 'progress.json'), 'utf8');
+  await assert.rejects(f.call('start', { phase: 'evidence_review', draft: true, response: '{phase}-response.json' }), /already exists/);
+  assert.equal(await readFile(join(f.out, 'progress.json'), 'utf8'), before);
+  await assert.rejects(f.call('complete', { phase: 'evidence_review', input: started.drafts.evidence_review }), /summary/);
+  await f.evidence(); await f.investigation();
+  const proposal = await f.present();
+  await assert.rejects(f.call('start', { phase: 'clarification', draft: true, response: 'proposal-response.json' }), /proposal is pending/);
+  assert.equal((await f.call('status')).proposal.id, proposal.status.proposal.id);
+  await assert.rejects(f.start('implementation'), /Earlier required/);
+});
+
+test('draft response cannot overwrite a symlink or rescue a stale worker binding', async t => {
+  const f = await fixture(t); await f.evidence(); await f.investigation(); await f.clarification();
+  const first = await f.handoff();
+  const outside = join(f.root, 'untouched.json'); await writeFile(outside, 'untouched');
+  await symlink(outside, join(first.assignment.directory, 'response.json'));
+  await assert.rejects(f.call('draft', { phase: 'implementation', input: first.assignment.binding_path, response: 'response.json' }), /already exists/);
+  assert.equal(await readFile(outside, 'utf8'), 'untouched');
+  await f.call('block', { phase: 'implementation', input: await f.input({ reason: 'Stopped worker', questions: [] }) });
+  await f.handoff();
+  await assert.rejects(f.call('draft', { phase: 'implementation', input: first.assignment.binding_path, response: 'fresh.json' }), /Stale.*binding/);
 });

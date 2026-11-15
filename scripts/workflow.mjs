@@ -1,4 +1,6 @@
 import { join, resolve } from "node:path";
+import { lstat, writeFile } from "node:fs/promises";
+import { activeAssignment } from "./handoff.mjs";
 import { args, atomic, json, isMain } from "./lib.mjs";
 import { acquireLock, defaultWorkDir } from "./state.mjs";
 import { endpoints } from "./prepare-ticket.mjs";
@@ -29,6 +31,14 @@ export async function workflow(
     ].includes(action)
   )
     throw new Error("Unknown workflow action");
+  if (options.draft && (action !== "start" ||
+      !["evidence_review", "investigation", "clarification"].includes(options.phase)))
+    throw new Error("--draft is only supported with start for evidence_review, investigation or clarification");
+  if (options.response && action !== "draft" && !(action === "start" && options.draft))
+    throw new Error("--response requires draft or start --draft");
+  const responseName = options.response?.replaceAll("{phase}", options.phase ?? "");
+  if (responseName && !/^[a-zA-Z0-9][a-zA-Z0-9._-]*\.json$/.test(responseName))
+    throw new Error("--response must be a JSON filename, not a path");
   key = key.trim().toUpperCase();
   if (!/^[A-Z][A-Z0-9_]*-\d+$/.test(key))
     throw new Error("Use a Jira issue key such as ABC-123");
@@ -44,7 +54,17 @@ export async function workflow(
     await atomic(progressFile, progress);
     const input = options.input ? await readInput(resolve(options.input)) : {};
     if (options.reason) input.reason = options.reason;
-    const status = await transition(
+    const responseDirectory = ["implementation", "verification"].includes(options.phase)
+      ? activeAssignment(progress, options.phase)?.directory : progress.artifact_directory;
+    const responsePath = responseName && responseDirectory ? join(responseDirectory, responseName) : null;
+    if (responsePath) {
+      const existing = await lstat(responsePath).catch(error => {
+        if (error.code === "ENOENT") return null;
+        throw error;
+      });
+      if (existing) throw new Error("Draft response already exists; use its saved paths or choose a fresh response filename after recovery");
+    }
+    let status = await transition(
       progress,
       manifest,
       out,
@@ -52,6 +72,13 @@ export async function workflow(
       options.phase,
       input,
     );
+    if (options.draft)
+      status = await transition(progress, manifest, out, "draft", options.phase, input);
+    if (responsePath) {
+      await writeFile(responsePath, JSON.stringify({ drafts: status.drafts,
+        draft_contents: status.draft_contents }, null, 2) + "\n", { flag: "wx", mode: 0o600 });
+      status.draft_response = responsePath;
+    }
     await atomic(progressFile, progress);
     return { ...status, work_directory: out, progress: progressFile };
   } finally {
@@ -67,10 +94,12 @@ if (isMain(import.meta.url)) {
       input: { type: "string" },
       reason: { type: "string" },
       format: { type: "string", default: "full" },
+      draft: { type: "boolean", default: false },
+      response: { type: "string" },
     });
     if (values.help)
       console.log(
-        "Usage: node workflow.mjs configure|status|start|draft|assert|block|present|request-reproduction-waiver|handoff|check-worker|record-check|complete|invalidate ABC-123 [--out WORK_DIR --phase PHASE --input JSON_FILE --reason TEXT --format compact|full]",
+        "Usage: node workflow.mjs configure|status|start|draft|assert|block|present|request-reproduction-waiver|handoff|check-worker|record-check|complete|invalidate ABC-123 [--out WORK_DIR --phase PHASE --input JSON_FILE --reason TEXT --format compact|full --draft --response FILENAME]",
       );
     else {
       if (positionals.length !== 2)

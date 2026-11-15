@@ -108,6 +108,7 @@ export async function createHandoff(
   await atomic(baselinePath, baseline);
   const draftArgs = [...argv];
   draftArgs[1] = "draft";
+  draftArgs.push("--response", "{phase}-draft-response.json");
   const workerBrief = join(skillDirectory, "references", "implementor.md");
   const returnReports = phaseName === "verification"
     ? ["verification"]
