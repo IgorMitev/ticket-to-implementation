@@ -1,16 +1,16 @@
 # Main-agent workflow
 
-Only the controller writes `progress.json`. The CLI defaults to full JSON for compatibility. Use `--format compact` for routine commands; it returns `next_phase`, `next_action`, `artifact_directory` and the current `phase_token`. Follow `next_action`, and keep drafts and reports in `artifact_directory`. `--out` selects an existing ticket directory without Jira credentials.
+Only the controller writes `progress.json`. CLI output is compact by default and returns `next_phase`, `next_action`, `artifact_directory` and the current `phase_token`. Follow `next_action`, and keep drafts and reports in `artifact_directory`. `--out` selects an existing ticket directory without Jira credentials.
 
 Only the main agent runs `configure`, `start`, `handoff`, `block`, `present`, `complete`, `invalidate` and session reset.
 
 ## Command sequence
 
 ```sh
-node "$SKILL_DIR/scripts/workflow.mjs" configure ABC-123 --out "$WORK_DIR" --input /path/request.json --format compact
-node "$SKILL_DIR/scripts/workflow.mjs" status ABC-123 --out "$WORK_DIR" --format compact
-node "$SKILL_DIR/scripts/workflow.mjs" start ABC-123 --out "$WORK_DIR" --phase evidence_review --format compact
-node "$SKILL_DIR/scripts/workflow.mjs" complete ABC-123 --out "$WORK_DIR" --phase evidence_review --input /path/evidence-result.json --format compact
+node "$SKILL_DIR/scripts/workflow.mjs" configure ABC-123 --out "$WORK_DIR" --input /path/request.json
+node "$SKILL_DIR/scripts/workflow.mjs" status ABC-123 --out "$WORK_DIR"
+node "$SKILL_DIR/scripts/workflow.mjs" start ABC-123 --out "$WORK_DIR" --phase evidence_review
+node "$SKILL_DIR/scripts/workflow.mjs" complete ABC-123 --out "$WORK_DIR" --phase evidence_review --input /path/evidence-result.json
 ```
 
 Repeat `start` and `complete` for each returned next phase. `start` returns a `phase_token`; put it in the result. Repeating `start` on an in-progress phase returns the same token. Resuming a blocked phase returns a new token and keeps its unanswered questions. Stale tokens are rejected.
@@ -55,7 +55,7 @@ Reconfiguring with a changed kind, scope, repository or request invalidates the 
 
 ## Draft reports
 
-After `start`, run `workflow.mjs draft ABC-123 --out WORK_DIR --phase PHASE --format compact` to create a new report skeleton. The returned `drafts` maps phases to file paths; `draft_contents` contains the same skeletons, so a separate file read is unnecessary. Generate once per report, fill that file and submit its returned path; do not recreate it under a second filename. Early-phase drafts carry the current token; worker drafts require `--input BINDING_PATH`, carry the original binding, and omit the main agent’s token and review. Implementation produces both worker drafts unless a reproduction waiver defers verification.
+After `start`, run `workflow.mjs draft ABC-123 --out WORK_DIR --phase PHASE` to create a new report skeleton. The returned `drafts` maps phases to file paths; `draft_contents` contains the same skeletons, so a separate file read is unnecessary. Generate once per report, fill that file and submit its returned path; do not recreate it under a second filename. Early-phase drafts carry the current token; worker drafts require `--input BINDING_PATH`, carry the original binding, and omit the main agent’s token and review. Implementation produces both worker drafts unless a reproduction waiver defers verification.
 
 Use the returned paths exactly; worker drafts are inside the assignment directory. Reuse an existing unsubmitted draft rather than generating another. Fill JSON with a file-edit tool or a script using JSON serialization. If using shell heredocs, quote the delimiter (`<<'EOF'`) so backticks and dollar signs remain data; never interpolate ticket text into shell commands. Parse the saved JSON before submitting it. Fill findings, evidence and actual responses, then use the normal `present`/`complete` procedure. Drafts cannot pass validation unchanged. They never supply approval, mark checks passed, refresh an old report or overwrite accepted files. A pending proposal must use its recorded draft. On stale tokens or bindings, follow recovery; do not copy a new token onto old evidence.
 
@@ -102,9 +102,9 @@ The summary and the referenced brief must describe the proposed goal, behavior a
 5. After an actual approving response, submit the exact draft to `complete` with the current phase token and the `alignment` object below. The content must match the recorded proposal.
 
 ```sh
-node "$SKILL_DIR/scripts/workflow.mjs" present ABC-123 --out "$WORK_DIR" --phase clarification --input /path/clarification-draft.json --format compact
+node "$SKILL_DIR/scripts/workflow.mjs" present ABC-123 --out "$WORK_DIR" --phase clarification --input /path/clarification-draft.json
 # Show the summary and wait for the user's approval before the next command.
-node "$SKILL_DIR/scripts/workflow.mjs" complete ABC-123 --out "$WORK_DIR" --phase clarification --input /path/clarification-approved.json --format compact
+node "$SKILL_DIR/scripts/workflow.mjs" complete ABC-123 --out "$WORK_DIR" --phase clarification --input /path/clarification-approved.json
 ```
 
 ```json
@@ -165,8 +165,8 @@ Completion returns `done: true` only within the configured scope, with `outcome`
 ## Block and invalidate
 
 ```sh
-node "$SKILL_DIR/scripts/workflow.mjs" block ABC-123 --out "$WORK_DIR" --phase clarification --input /path/blocker.json --format compact
-node "$SKILL_DIR/scripts/workflow.mjs" invalidate ABC-123 --out "$WORK_DIR" --phase clarification --reason 'User changed the required empty state' --format compact
+node "$SKILL_DIR/scripts/workflow.mjs" block ABC-123 --out "$WORK_DIR" --phase clarification --input /path/blocker.json
+node "$SKILL_DIR/scripts/workflow.mjs" invalidate ABC-123 --out "$WORK_DIR" --phase clarification --reason 'User changed the required empty state'
 ```
 
 Block input: `{"reason": "Need role decision", "questions": [{"id": "Q1", "question": "Which roles can save?", "material": true}]}`. Question IDs must be unique. The phase stays blocked until it is started again; blocking also discards its pending proposal, waiver request or worker assignment.

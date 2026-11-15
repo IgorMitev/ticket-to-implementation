@@ -66,7 +66,7 @@ if (isMain(import.meta.url)) {
       phase: { type: "string" },
       input: { type: "string" },
       reason: { type: "string" },
-      format: { type: "string", default: "full" },
+      format: { type: "string", default: "compact" },
     });
     if (values.help)
       console.log(

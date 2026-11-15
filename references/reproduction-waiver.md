@@ -19,10 +19,10 @@ Read this only when a bug or mixed ticket could not be reproduced locally, or a 
 ```
 
 ```sh
-node "$SKILL_DIR/scripts/workflow.mjs" request-reproduction-waiver ABC-123 --out "$WORK_DIR" --phase investigation --input /path/investigation-draft.json --format compact
+node "$SKILL_DIR/scripts/workflow.mjs" request-reproduction-waiver ABC-123 --out "$WORK_DIR" --phase investigation --input /path/investigation-draft.json
 # Ask the user and wait; do not record an invented response.
-node "$SKILL_DIR/scripts/workflow.mjs" start ABC-123 --out "$WORK_DIR" --phase investigation --format compact
-node "$SKILL_DIR/scripts/workflow.mjs" complete ABC-123 --out "$WORK_DIR" --phase investigation --input /path/investigation-with-waiver.json --format compact
+node "$SKILL_DIR/scripts/workflow.mjs" start ABC-123 --out "$WORK_DIR" --phase investigation
+node "$SKILL_DIR/scripts/workflow.mjs" complete ABC-123 --out "$WORK_DIR" --phase investigation --input /path/investigation-with-waiver.json
 ```
 
 ## Changes after a request

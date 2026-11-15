@@ -96,8 +96,6 @@ export async function createHandoff(
     phaseName,
     "--input",
     bindingPath,
-    "--format",
-    "compact",
   ];
   const quote = (value) => "'" + value.replaceAll("'", "'\"'\"'") + "'";
   const baseline = await repositorySnapshot(
@@ -124,16 +122,9 @@ export async function createHandoff(
     binding_path: bindingPath,
     worker_brief: workerBrief,
     return_reports: returnReports,
-    draft_reports: {
-      executable: "node",
-      args: draftArgs,
-      command: ["node", ...draftArgs].map(quote).join(" "),
-    },
-    check_worker: {
-      executable: "node",
-      args: argv,
-      command: ["node", ...argv].map(quote).join(" "),
-    },
+    // Commands are shell-quoted once; the worker brief defines when to change only the phase.
+    draft_reports: { command: ["node", ...draftArgs].map(quote).join(" ") },
+    check_worker: { command: ["node", ...argv].map(quote).join(" ") },
     repository_baseline: baselinePath,
     repository_summary: {
       mode: baseline.mode,
@@ -142,24 +133,15 @@ export async function createHandoff(
       file_count: Object.keys(baseline.files).length,
       dirty_entry_count: baseline.working_tree?.length ?? null,
     },
-    context_budget: {
-      exploration_tool_calls: 15,
-      handoff_summary_words: 250,
-      checkpoint:
-        "Before another large investigation, save findings, open questions and next steps to checkpoint.md; return its path to the main agent.",
-    },
     resolved_questions: answers,
-    implementation_result:
-      phaseName === "verification"
-        ? progress.phases.implementation.result_file
-        : null,
+    ...(phaseName === "verification"
+      ? { implementation_result: progress.phases.implementation.result_file }
+      : {}),
     repository: progress.config.repository,
     user_request: progress.config.user_request,
     kind: progress.config.kind,
     work_directory: workDirectory,
     output_directory: directory,
-    ownership:
-      "One implementor owns repository edits for this assignment. Main agent owns user interaction and workflow mutations.",
     requirements: {
       summary: requirements.summary,
       acceptance_criteria: requirements.acceptance_criteria,
@@ -187,23 +169,11 @@ export async function createHandoff(
         p,
         {
           result: progress.phases[p].result_file,
-          artifacts: progress.phases[p].artifacts,
+          // Hashes stay in progress.json for invalidation; the worker needs paths only.
+          artifacts: (progress.phases[p].artifacts ?? []).map((a) => a.path),
         },
       ]),
     ),
-    outputs: {
-      implementation: join(directory, "implementation.json"),
-      verification: join(directory, "verification.json"),
-      blocker: join(directory, "blocker.json"),
-    },
-    instructions: [
-      "Fill and return the paths from draft_reports; outputs are fallback locations when drafts are unavailable. Follow references/implementor.md in skill_directory and repository instructions. The brief defines binding checks, evidence rules, report contracts and ownership boundaries.",
-      phaseName === "verification"
-        ? "Verification only: inspect and test the accepted implementation. Do not edit source; return required fixes to the main agent."
-        : investigation.reproduction_waiver
-          ? "Return implementation first. After the main agent starts verification, perform the approved alternative and return fresh verification evidence."
-          : "Return BOTH implementation and verification reports before finishing, while implementation is active. Reuse valid unchanged-code receipts; do not wait for the main agent to start verification.",
-    ],
   };
   const path = join(directory, "handoff.json");
   await atomic(path, packet);

@@ -371,8 +371,12 @@ test('blocker answers are validated before assignment and delivered to the repla
   const packet = await json(assigned.assignment.path);
   assert.deepEqual(packet.resolved_questions, answers);
   assert.equal(packet.binding_path, assigned.assignment.binding_path);
-  assert.ok(packet.skill_directory.endsWith('ticket-to-implementation/'));
-  assert.ok(packet.check_worker.args.includes(assigned.assignment.binding_path));
+  assert.equal(await realpath(join(packet.skill_directory, 'SKILL.md')), await realpath(new URL('../SKILL.md', import.meta.url).pathname));
+  assert.ok(packet.check_worker.command.includes(assigned.assignment.binding_path));
+  // Context-reduced packet: no duplicated argv, legacy outputs or brief restatements.
+  for (const key of ['outputs', 'instructions', 'ownership', 'context_budget', 'implementation_result']) assert.ok(!(key in packet), key);
+  assert.deepEqual(Object.keys(packet.check_worker), ['command']);
+  assert.ok(packet.references.clarification.artifacts.every(a => typeof a === 'string'));
   await f.submit('implementation', assigned.phase_token, { resolved_questions: packet.resolved_questions, addressed_criteria: ['AC1'], changed_files: ['app.js'] });
 });
 
@@ -738,16 +742,19 @@ test('schema 5 and 6 mixed sessions reopen investigation through schema 7', asyn
   }
 });
 
-test('compact CLI preserves actionable state and leaves full API/default output compatible', async t => {
+test('compact CLI default preserves actionable state while the full API stays complete', async t => {
   const { presentStatus } = await import('../scripts/presentation.mjs');
   const f = await fixture(t);
   const cli = (script, args) => JSON.parse(execFileSync(process.execPath, [
     new URL(`../scripts/${script}.mjs`, import.meta.url).pathname, ...args, 'APP-1', '--out', f.out,
   ], { encoding: 'utf8' }));
   const compare = async () => {
-    const full = cli('workflow', ['status']);
+    const full = cli('workflow', ['status', '--format', 'full']);
     assert.deepEqual(full, JSON.parse(JSON.stringify(await f.call('status'))));
     const saved = await readFile(join(f.out, 'progress.json'), 'utf8');
+    const compact = cli('workflow', ['status']);
+    assert.deepEqual(compact, presentStatus(full, 'compact'));
+    assert.ok(!('revision' in compact) && Object.values(compact).every(v => v !== null && !(Array.isArray(v) && !v.length)));
     assert.deepEqual(cli('workflow', ['status', '--format', 'compact']), presentStatus(full, 'compact'));
     assert.equal(await readFile(join(f.out, 'progress.json'), 'utf8'), saved);
     return full;
@@ -870,15 +877,15 @@ test('waiver drafts defer verification until its active phase and preserve alter
   await f.clarification({ reproduction_waiver_id: req.status.reproduction_request.id, exception_decisions: [{ phase: 'investigation', code: 'not_reproduced', resolution: 'accepted_by_user', reason: 'Proceed with fixture regression', waiver_request_id: req.status.reproduction_request.id, user_response: 'User: I approve proceeding without local reproduction for this limitation.' }] });
   const s = await f.handoff();
   const packet = await json(s.assignment.path);
-  const runDraft = args => JSON.parse(execFileSync(packet.draft_reports.executable, args, { encoding: 'utf8', stdio: 'pipe' }));
-  const made = runDraft(packet.draft_reports.args);
+  const runDraft = command => JSON.parse(execFileSync('/bin/sh', ['-c', command], { encoding: 'utf8', stdio: 'pipe' }));
+  const made = runDraft(packet.draft_reports.command);
   assert.deepEqual(Object.keys(made.drafts), ['implementation']);
   // Follow the worker brief: change only the phase, retaining the original binding.
-  const verificationArgs = [...packet.draft_reports.args];
-  verificationArgs[verificationArgs.indexOf('--phase') + 1] = 'verification';
+  const verificationArgs = packet.draft_reports.command.replace("'--phase' 'implementation'", "'--phase' 'verification'");
+  assert.notEqual(verificationArgs, packet.draft_reports.command);
   assert.throws(() => runDraft(verificationArgs), e => e.status === 1 && /Earlier required/.test(e.stderr));
   await f.implementation(); await f.start('verification');
-  assert.throws(() => runDraft(packet.draft_reports.args), e => e.status === 1 && /Earlier required/.test(e.stderr));
+  assert.throws(() => runDraft(packet.draft_reports.command), e => e.status === 1 && /Earlier required/.test(e.stderr));
   const resumed = runDraft(verificationArgs);
   assert.deepEqual(Object.keys(resumed.drafts), ['verification']);
   const v = await json(resumed.drafts.verification);
@@ -901,6 +908,7 @@ test('filled draft reports complete the same receipt-backed workflow', async t =
   const s = await f.handoff();
   const cli = JSON.parse(execFileSync(process.execPath, [new URL('../scripts/workflow.mjs', import.meta.url).pathname,
     'draft', 'APP-1', '--out', f.out, '--phase', 'implementation', '--input', s.assignment.binding_path, '--format', 'compact'], { encoding: 'utf8' }));
+  assert.deepEqual(Object.keys(cli), ['drafts', 'draft_contents']);
   const { implementation: impl, verification: v } = cli.draft_contents;
   assert.deepEqual(impl, await json(cli.drafts.implementation));
   assert.deepEqual(v, await json(cli.drafts.verification));
@@ -932,9 +940,9 @@ test('handoff supplies executable draft command, confined worker paths and compl
     assert.ok((await realpath(path)).startsWith((await realpath(s.assignment.directory)) + '/'));
     assert.equal((await json(path)).assignment_id, s.assignment.assignment_id);
   }
-  const again = JSON.parse(execFileSync(packet.draft_reports.executable, packet.draft_reports.args, { encoding: 'utf8' }));
+  const again = JSON.parse(execFileSync('/bin/sh', ['-c', packet.draft_reports.command], { encoding: 'utf8' }));
   assert.notEqual(again.drafts.implementation, run.drafts.implementation);
   await f.call('block', { phase: 'implementation', input: await f.input({ reason: 'Replace stopped worker', questions: [] }) });
   await f.handoff();
-  assert.throws(() => execFileSync(packet.draft_reports.executable, packet.draft_reports.args, { stdio: 'pipe' }), e => e.status === 1 && /Stale.*binding/.test(e.stderr));
+  assert.throws(() => execFileSync('/bin/sh', ['-c', packet.draft_reports.command], { stdio: 'pipe' }), e => e.status === 1 && /Stale.*binding/.test(e.stderr));
 });

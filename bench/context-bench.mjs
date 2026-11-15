@@ -53,7 +53,7 @@ export async function staticMetrics(skillDir, benchDir = here) {
   return { loads, safeguards: { checked: safeguards.length, missing } };
 }
 
-// Runs the documented CLI commands against offline fixtures and records printed output size.
+// Runs the documented CLI commands (default output format) against offline fixtures and records printed output size.
 export async function cliMetrics(skillDir) {
   const scenarios = {};
   for (const kind of ['feature', 'bug']) scenarios[kind] = await runScenario(skillDir, kind);
@@ -78,7 +78,6 @@ async function runScenario(skillDir, kind) {
       const args = [join(skillDir, 'scripts/workflow.mjs'), action, 'BENCH-1', '--out', out];
       if (opts.phase) args.push('--phase', opts.phase);
       if (opts.input) args.push('--input', opts.input);
-      args.push('--format', 'compact');
       const stdout = execFileSync(process.execPath, args, { encoding: 'utf8' });
       calls.push({ step: `${action}${opts.phase ? ' ' + opts.phase : ''}`, bytes: Buffer.byteLength(stdout) });
       return JSON.parse(stdout);
@@ -113,7 +112,7 @@ async function runScenario(skillDir, kind) {
     const packet = await readFile(handoff.assignment.path, 'utf8');
     const binding = await readFile(handoff.assignment.binding_path, 'utf8');
     const workerDraft = execFileSync(process.execPath, [join(skillDir, 'scripts/workflow.mjs'), 'draft', 'BENCH-1', '--out', out,
-      '--phase', 'implementation', '--input', handoff.assignment.binding_path, '--format', 'compact'], { encoding: 'utf8' });
+      '--phase', 'implementation', '--input', handoff.assignment.binding_path], { encoding: 'utf8' });
     const total = calls.reduce((s, c) => s + c.bytes, 0);
     return {
       cli_calls: calls.length, cli_bytes: total, cli_tokens_est: tokens(total), calls,

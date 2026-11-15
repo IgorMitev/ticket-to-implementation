@@ -36,7 +36,7 @@ Both accept `--out WORK_DIR`, which also removes the need for Jira environment v
 
 ## Run the workflow
 
-Read the command sequence and current-phase sections of [main-agent.md](references/main-agent.md) before advancing the ticket. Load conditional bug/waiver and recovery references only when relevant. Use `--format compact` for workflow/session CLI calls; `--format full` exposes detailed state when needed. Configure the kind, scope, repository and original user request with `workflow.mjs configure`. Scope `review` stops after investigation, `clarify` stops after requirements alignment, and `implement` runs the full flow. Do not widen scope without a new user instruction.
+Read the command sequence and current-phase sections of [main-agent.md](references/main-agent.md) before advancing the ticket. Load conditional bug/waiver and recovery references only when relevant. CLI output is compact by default; `--format full` exposes detailed state when needed. Configure the kind, scope, repository and original user request with `workflow.mjs configure`. Scope `review` stops after investigation, `clarify` stops after requirements alignment, and `implement` runs the full flow. Do not widen scope without a new user instruction.
 
 Follow the controller's `next_phase` and `next_action`; `workflow.mjs status` shows the saved state. Only the scripts write progress, phase status and tokens, so never hand-edit `progress.json`. Write drafts and evidence in the returned `artifact_directory`, and never edit accepted results in place. Record blockers through the controller.
 

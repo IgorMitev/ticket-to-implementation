@@ -103,7 +103,7 @@ export async function session(
 
 if (isMain(import.meta.url)) {
   try {
-    const { values, positionals } = args({ out: { type: "string" }, format: { type: "string", default: "full" } });
+    const { values, positionals } = args({ out: { type: "string" }, format: { type: "string", default: "compact" } });
     if (values.help)
       console.log(
         "Usage: node session.mjs continue|reset ABC-123 [--out EXISTING_WORK_DIR --format compact|full]",

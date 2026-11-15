@@ -1,28 +1,28 @@
 {
   "loads": {
     "main.feature": {
-      "bytes": 31225,
-      "tokens_est": 7806,
+      "bytes": 30991,
+      "tokens_est": 7748,
       "files": 3
     },
     "main.bug": {
-      "bytes": 42354,
-      "tokens_est": 10589,
+      "bytes": 42120,
+      "tokens_est": 10530,
       "files": 5
     },
     "main.bug_waiver": {
-      "bytes": 46024,
-      "tokens_est": 11506,
+      "bytes": 45739,
+      "tokens_est": 11435,
       "files": 6
     },
     "worker.implementor": {
-      "bytes": 11422,
-      "tokens_est": 2856,
+      "bytes": 11325,
+      "tokens_est": 2831,
       "files": 2
     },
     "worker.implementor_browser": {
-      "bytes": 20623,
-      "tokens_est": 5156,
+      "bytes": 20526,
+      "tokens_est": 5132,
       "files": 3
     },
     "worker.video": {
@@ -38,145 +38,145 @@
   "cli": {
     "feature": {
       "cli_calls": 15,
-      "cli_bytes": 15169,
-      "cli_tokens_est": 3792,
+      "cli_bytes": 11220,
+      "cli_tokens_est": 2805,
       "calls": [
         {
           "step": "configure",
-          "bytes": 619
+          "bytes": 471
         },
         {
           "step": "status",
-          "bytes": 619
+          "bytes": 471
         },
         {
           "step": "start evidence_review",
-          "bytes": 861
+          "bytes": 732
         },
         {
           "step": "draft evidence_review",
-          "bytes": 1285
+          "bytes": 426
         },
         {
           "step": "complete evidence_review",
-          "bytes": 615
+          "bytes": 467
         },
         {
           "step": "start investigation",
-          "bytes": 855
+          "bytes": 726
         },
         {
           "step": "draft investigation",
-          "bytes": 1316
+          "bytes": 463
         },
         {
           "step": "complete investigation",
-          "bytes": 615
+          "bytes": 467
         },
         {
           "step": "start clarification",
-          "bytes": 803
+          "bytes": 674
         },
         {
           "step": "draft clarification",
-          "bytes": 1270
+          "bytes": 469
         },
         {
           "step": "present clarification",
-          "bytes": 1190
+          "bytes": 1077
         },
         {
           "step": "complete clarification",
-          "bytes": 617
+          "bytes": 469
         },
         {
           "step": "start implementation",
-          "bytes": 788
+          "bytes": 658
         },
         {
           "step": "handoff implementation",
-          "bytes": 1858
+          "bytes": 1825
         },
         {
           "step": "assert implementation",
-          "bytes": 1858
+          "bytes": 1825
         }
       ],
-      "handoff_bytes": 7567,
-      "handoff_tokens_est": 1892,
+      "handoff_bytes": 4797,
+      "handoff_tokens_est": 1199,
       "binding_bytes": 212,
-      "worker_draft_bytes": 3125
+      "worker_draft_bytes": 1269
     },
     "bug": {
       "cli_calls": 15,
-      "cli_bytes": 15204,
-      "cli_tokens_est": 3801,
+      "cli_bytes": 11267,
+      "cli_tokens_est": 2817,
       "calls": [
         {
           "step": "configure",
-          "bytes": 615
+          "bytes": 467
         },
         {
           "step": "status",
-          "bytes": 615
+          "bytes": 467
         },
         {
           "step": "start evidence_review",
-          "bytes": 857
+          "bytes": 728
         },
         {
           "step": "draft evidence_review",
-          "bytes": 1281
+          "bytes": 426
         },
         {
           "step": "complete evidence_review",
-          "bytes": 611
+          "bytes": 463
         },
         {
           "step": "start investigation",
-          "bytes": 851
+          "bytes": 722
         },
         {
           "step": "draft investigation",
-          "bytes": 1407
+          "bytes": 558
         },
         {
           "step": "complete investigation",
-          "bytes": 611
+          "bytes": 463
         },
         {
           "step": "start clarification",
-          "bytes": 799
+          "bytes": 670
         },
         {
           "step": "draft clarification",
-          "bytes": 1266
+          "bytes": 469
         },
         {
           "step": "present clarification",
-          "bytes": 1186
+          "bytes": 1073
         },
         {
           "step": "complete clarification",
-          "bytes": 613
+          "bytes": 465
         },
         {
           "step": "start implementation",
-          "bytes": 784
+          "bytes": 654
         },
         {
           "step": "handoff implementation",
-          "bytes": 1854
+          "bytes": 1821
         },
         {
           "step": "assert implementation",
-          "bytes": 1854
+          "bytes": 1821
         }
       ],
-      "handoff_bytes": 8215,
-      "handoff_tokens_est": 2054,
+      "handoff_bytes": 5327,
+      "handoff_tokens_est": 1332,
       "binding_bytes": 212,
-      "worker_draft_bytes": 3170
+      "worker_draft_bytes": 1318
     }
   }
 }
