@@ -20,6 +20,8 @@
     {"id": "worker-binding-check", "sets": ["worker.implementor"], "pattern": "check_worker"},
     {"id": "worker-no-passing-unrun-checks", "sets": ["worker.implementor"], "pattern": "never report a failing or unrun check as passing"},
     {"id": "worker-preserve-user-edits", "sets": ["worker.implementor"], "pattern": "preserve unrelated work"},
+    {"id": "override-cleanup", "sets": ["main.bug_override"], "pattern": "verify `active: false`"},
+    {"id": "waiver-fresh-evidence", "sets": ["worker.implementor_waiver"], "pattern": "must be new files written in the active artifact directory"},
     {"id": "video-no-remote-vision", "sets": ["worker.video"], "pattern": "do not call a vision api"}
   ]
 }

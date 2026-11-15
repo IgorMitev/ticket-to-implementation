@@ -18,7 +18,7 @@ Use the packet's compact `repository_summary` and targeted Git diff or status ou
 
 ## Run checks
 
-For browser reproduction rechecks, read [browser reproduction](browser-reproduction.md), confirm Chrome DevTools MCP is callable in your own worker context, and use the server/session details and page ownership in the investigation handoff. Missing access is a blocker to the main agent, not permission to switch browser integrations. Never start or restart a dev server, including through test commands that launch one. If it stops or details are missing, return a blocker to the main agent so it can ask the user. Reapply any recorded scoped override for the recheck, remove it afterward, and close your temporary pages unless retention was requested. Report page ownership and actual cleanup outcomes for the main agent’s final check.
+For browser reproduction rechecks, read [browser reproduction](browser-reproduction.md), confirm Chrome DevTools MCP is callable in your own worker context, and use the server/session details and page ownership in the investigation handoff. Missing access is a blocker to the main agent, not permission to switch browser integrations. Never start or restart a dev server, including through test commands that launch one. If it stops or details are missing, return a blocker to the main agent so it can ask the user. Reapply any recorded scoped override for the recheck using [browser-overrides.md](browser-overrides.md), remove it afterward, and close your temporary pages unless retention was requested. Report page ownership and actual cleanup outcomes for the main agent’s final check.
 
 Run every check through the bundled runner, using the packet's `skill_directory`, `work_directory` and `binding_path`:
 
@@ -36,7 +36,7 @@ A verification report needs at least one recorded check. For a manual inspection
 
 ## Report
 
-Read [worker-reports.md](worker-reports.md) for your report fields; its waiver section applies only when the packet records a waiver. Run the packet's `draft_reports.command`. For a reproduction-waiver assignment resumed after the main agent starts verification, replace only `'--phase' 'implementation'` with `'--phase' 'verification'`, keeping the original binding path; otherwise run it verbatim. Use the returned `drafts` paths exactly, without constructing filenames. Older packets without that command can use `node "$SKILL_DIR/scripts/workflow.mjs" draft KEY --out WORK_DIR --phase PHASE --input BINDING_PATH --format compact`.
+The generated drafts contain every required field. Read [worker-reports.md](worker-reports.md) only when the packet records a reproduction waiver or a rejected report needs explaining. Run the packet's `draft_reports.command`. For a reproduction-waiver assignment resumed after the main agent starts verification, replace only `'--phase' 'implementation'` with `'--phase' 'verification'`, keeping the original binding path; otherwise run it verbatim. Use the returned `drafts` paths exactly, without constructing filenames. Older packets without that command can use `node "$SKILL_DIR/scripts/workflow.mjs" draft KEY --out WORK_DIR --phase PHASE --input BINDING_PATH --format compact`.
 
 The response includes `draft_contents` matching the saved files. Fill those returned files directly with a file-edit tool or JSON serialization; no separate read or duplicate final report is needed. Generate each draft once unless recovery requires a fresh assignment. If using a shell heredoc, quote its delimiter (`<<'EOF'`) so backticks and dollar signs remain data. Parse the JSON before returning. Return the filled `drafts` paths as the completed reports. Keep evidence inside the ticket work directory. The main agent supplies its phase token and review.
 
@@ -46,9 +46,15 @@ Complete every report named in `return_reports` before finishing:
 - **Reproduction waiver:** return implementation first. After the main agent starts verification, carry out the approved alternative with fresh evidence and return verification. A waiver never skips post-fix verification.
 - **Verification-only assignment:** return verification without editing source.
 
-If the packet predates `return_reports`, use these same rules. An unverified criterion or missing required report is a blocker, not a completed assignment.
+If the packet predates `return_reports`, use these same rules. A failed or unverified criterion or check, or a missing required report, is a blocker, not a completed assignment.
 
-Before returning, check that every approved criterion is covered, all changed files are listed, receipts match the current assignment and code, and the packet's `resolved_questions` are included.
+Before returning, check each report:
+
+- Nonempty `summary` and `artifacts`; evidence stays inside the ticket work directory with at least one report in the active artifact directory, and no credentials. Exceptions never relabel a failure.
+- Implementation: `addressed_criteria` lists exactly the agreed IDs; `changed_files` lists every changed repository file, including tests and deletions, and nothing unrelated. With no change, give `no_change_reason` and a `no_code_change` exception.
+- Verification: each agreed ID once in `criteria` with `status: "passed"`, a result and evidence paths; `checks` entries are `{command, exit_code: 0, evidence: LOG}` from verify.mjs, or empty with `no_tests_reason`; `verification_receipts` match the current assignment and code.
+- Bug or mixed: `reproduction_recheck` is `{status: "passed", result}`; only a never-reproduced bug may use `not_reproduced`, with a `runtime_unverified` exception.
+- The packet's `resolved_questions` are included.
 
 Never report a failing or unrun check as passing. Copy every value from `binding.json` into each report and blocker. If completion is blocked, return a blocker instead, preserving useful partial work:
 

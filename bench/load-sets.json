@@ -5,8 +5,10 @@
     "references/browser-reproduction.md", "references/local-reproduction.md"],
   "main.bug_waiver": ["SKILL.md", "references/main-agent.md", "references/clarification-guide.md",
     "references/browser-reproduction.md", "references/local-reproduction.md", "references/reproduction-waiver.md"],
-  "worker.implementor": ["references/implementor.md", "references/worker-reports.md"],
-  "worker.implementor_browser": ["references/implementor.md", "references/worker-reports.md",
-    "references/browser-reproduction.md"],
+  "main.bug_override": ["SKILL.md", "references/main-agent.md", "references/clarification-guide.md",
+    "references/browser-reproduction.md", "references/local-reproduction.md", "references/browser-overrides.md"],
+  "worker.implementor": ["references/implementor.md"],
+  "worker.implementor_waiver": ["references/implementor.md", "references/worker-reports.md"],
+  "worker.implementor_browser": ["references/implementor.md", "references/browser-reproduction.md"],
   "worker.video": ["references/video-review.md"]
 }
