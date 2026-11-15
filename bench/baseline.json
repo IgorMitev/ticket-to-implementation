@@ -1,29 +1,39 @@
 {
   "loads": {
     "main.feature": {
-      "bytes": 28973,
-      "tokens_est": 7243,
+      "bytes": 29160,
+      "tokens_est": 7290,
       "files": 3
     },
     "main.bug": {
-      "bytes": 40102,
-      "tokens_est": 10026,
+      "bytes": 38022,
+      "tokens_est": 9506,
       "files": 5
     },
     "main.bug_waiver": {
-      "bytes": 43721,
-      "tokens_est": 10930,
+      "bytes": 41641,
+      "tokens_est": 10410,
+      "files": 6
+    },
+    "main.bug_override": {
+      "bytes": 40823,
+      "tokens_est": 10206,
       "files": 6
     },
     "worker.implementor": {
-      "bytes": 11325,
-      "tokens_est": 2831,
+      "bytes": 8281,
+      "tokens_est": 2070,
+      "files": 1
+    },
+    "worker.implementor_waiver": {
+      "bytes": 12236,
+      "tokens_est": 3059,
       "files": 2
     },
     "worker.implementor_browser": {
-      "bytes": 20526,
-      "tokens_est": 5132,
-      "files": 3
+      "bytes": 15215,
+      "tokens_est": 3804,
+      "files": 2
     },
     "worker.video": {
       "bytes": 4022,
@@ -32,7 +42,7 @@
     }
   },
   "safeguards": {
-    "checked": 20,
+    "checked": 22,
     "missing": []
   },
   "cli": {
