@@ -946,3 +946,27 @@ test('handoff supplies executable draft command, confined worker paths and compl
   await f.handoff();
   assert.throws(() => execFileSync('/bin/sh', ['-c', packet.draft_reports.command], { stdio: 'pipe' }), e => e.status === 1 && /Stale.*binding/.test(e.stderr));
 });
+
+test('workers check filled reports without changing workflow state', async t => {
+  const f = await fixture(t); await f.evidence(); await f.investigation(); await f.clarification();
+  const assigned = await f.handoff();
+  const packet = await json(assigned.assignment.path);
+  assert.match(packet.check_report.command, /'check-report' 'APP-1' '--out' .* --phase PHASE --input DRAFT$/);
+  const bind = await f.binding();
+  const report = async (name, data) => f.input({ ...bind, summary: `${name} findings`, artifacts: [await f.artifact(`${name}.md`)], resolved_questions: [], exceptions: [], ...data });
+  await writeFile(join(f.repo, 'app.js'), 'export const enabled = true;\n');
+  const before = await readFile(join(f.out, 'progress.json'), 'utf8');
+  const impl = await f.call('check-report', { phase: 'implementation', input: await report('implementation', { addressed_criteria: ['AC1'], changed_files: ['app.js'] }) });
+  assert.deepEqual(impl.report_check, { phase: 'implementation', valid: true });
+  await assert.rejects(f.call('check-report', { phase: 'implementation', input: await report('implementation', { addressed_criteria: ['AC1'], changed_files: [] }) }), /Unreported repository changes|no_change_reason/);
+  const run = await verify('APP-1', { out: f.out, binding: assigned.assignment.binding_path }, [process.execPath, '-e', 'console.log("PASS")']);
+  const verification = { criteria: [{ id: 'AC1', status: 'passed', result: 'Enabled', evidence: [run.log] }], checks: [{ command: 'fixture-check', exit_code: 0, evidence: run.log }], verification_receipts: [run.receipt] };
+  assert.equal((await f.call('check-report', { phase: 'verification', input: await report('verification', verification) })).report_check.valid, true);
+  await assert.rejects(f.call('check-report', { phase: 'verification', input: await report('verification', { ...verification, verification_receipts: [] }) }), /receipt is required/);
+  const after = JSON.parse(await readFile(join(f.out, 'progress.json'), 'utf8'));
+  // Only the receipt registration by verify.mjs is recorded.
+  assert.equal(after.revision, JSON.parse(before).revision + 1);
+  assert.equal(after.events.at(-1).action, 'record-check');
+  assert.equal(after.phases.implementation.status, 'in_progress');
+  await assert.rejects(f.call('check-report', { phase: 'clarification', input: await report('implementation', {}) }), /phase/);
+});

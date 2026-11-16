@@ -10,6 +10,7 @@ The controller validates declarations, artifacts, ordering and changes. It does 
 - Reproduction and post-fix evidence: it checks the plan reference and evidence paths, not whether the agent's description is truthful. It cannot infer the provenance of edited or re-encoded bytes.
 - Receipts: registration is a declaration, not a security boundary against state tampering. A manual receipt records the agent's observation; it does not prove that the inspection happened.
 - `check-worker` does not cancel a running process or prevent edits outside the protocol.
+- `check-report` is a worker convenience: it runs the completion checks except the main agent's review fields and changes no state. `complete` still validates everything.
 - Repository snapshots cannot determine which writer caused a declared change, do not freeze the workspace, and do not detect an edit that occurs and is reverted between snapshots. Environment, services and ignored dependencies still need appropriate verification.
 - Worker context isolation depends on the host. Do not claim measured or guaranteed token savings.
 

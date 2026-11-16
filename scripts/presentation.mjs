@@ -10,6 +10,7 @@ export function presentStatus(status, format = "full") {
   if (format === "full") return status;
   // Draft output is consumed right after start: the paths and skeletons are all that is new.
   if (status.drafts) return { drafts: status.drafts, draft_contents: status.draft_contents };
+  if (status.report_check) return { report_check: status.report_check };
   const { phases, work_directory, revision, ...rest } = status;
   // Absent means none: omit null values and empty lists so routine calls stay short.
   const compact = Object.fromEntries(Object.entries(rest).filter(([, v]) =>

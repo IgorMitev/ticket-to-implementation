@@ -21,18 +21,18 @@
       "files": 6
     },
     "worker.implementor": {
-      "bytes": 8056,
-      "tokens_est": 2014,
+      "bytes": 8708,
+      "tokens_est": 2177,
       "files": 1
     },
     "worker.implementor_waiver": {
-      "bytes": 12011,
-      "tokens_est": 3003,
+      "bytes": 12663,
+      "tokens_est": 3166,
       "files": 2
     },
     "worker.implementor_browser": {
-      "bytes": 14990,
-      "tokens_est": 3748,
+      "bytes": 15642,
+      "tokens_est": 3911,
       "files": 2
     },
     "worker.video": {
@@ -42,14 +42,14 @@
     }
   },
   "safeguards": {
-    "checked": 22,
+    "checked": 24,
     "missing": []
   },
   "cli": {
     "feature": {
       "cli_calls": 15,
-      "cli_bytes": 11220,
-      "cli_tokens_est": 2805,
+      "cli_bytes": 11062,
+      "cli_tokens_est": 2766,
       "calls": [
         {
           "step": "configure",
@@ -105,22 +105,22 @@
         },
         {
           "step": "handoff implementation",
-          "bytes": 1825
+          "bytes": 1746
         },
         {
           "step": "assert implementation",
-          "bytes": 1825
+          "bytes": 1746
         }
       ],
-      "handoff_bytes": 4797,
-      "handoff_tokens_est": 1199,
+      "handoff_bytes": 4749,
+      "handoff_tokens_est": 1187,
       "binding_bytes": 212,
       "worker_draft_bytes": 1269
     },
     "bug": {
       "cli_calls": 15,
-      "cli_bytes": 11267,
-      "cli_tokens_est": 2817,
+      "cli_bytes": 11109,
+      "cli_tokens_est": 2777,
       "calls": [
         {
           "step": "configure",
@@ -176,15 +176,15 @@
         },
         {
           "step": "handoff implementation",
-          "bytes": 1821
+          "bytes": 1742
         },
         {
           "step": "assert implementation",
-          "bytes": 1821
+          "bytes": 1742
         }
       ],
-      "handoff_bytes": 5327,
-      "handoff_tokens_est": 1332,
+      "handoff_bytes": 5279,
+      "handoff_tokens_est": 1320,
       "binding_bytes": 212,
       "worker_draft_bytes": 1318
     }

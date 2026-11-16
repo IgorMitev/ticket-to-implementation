@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { staticMetrics, cliMetrics, compare } from '../bench/context-bench.mjs';
 import { chooseReply, summarizeEvents, summarize } from '../bench/agent-trial.mjs';
+import { projectKey, parseUsage, sumUsage } from '../bench/cursor-usage.mjs';
 
 const skillDir = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -89,4 +90,11 @@ test('event summary deduplicates requests and splits main and worker usage', () 
   const summary = summarize([{ ...s, user_turns: 2, outcomes: { done: true, tests_pass: true, user_edit_preserved: true, asked_punctuation_before_approval: true, approval_requested: true } }]);
   assert.equal(summary['main peak context'], 1110);
   assert.equal(summary['gate: done'], '1/1');
+});
+
+test('cursor usage maps the project key and splits cached input', () => {
+  assert.equal(projectKey('/Users/me/Work/ticket-to-implementation'), 'Users-me-Work-ticket-to-implementation');
+  const t = parseUsage('{"inputTokens":100,"outputTokens":7,"cacheReadTokens":60,"totalTokens":107,"reasoningTokens":3}');
+  assert.deepEqual(t, { input: 100, cache_read: 60, input_uncached: 40, output: 7, reasoning: 3, total: 107 });
+  assert.equal(sumUsage([t, t]).input_uncached, 80);
 });

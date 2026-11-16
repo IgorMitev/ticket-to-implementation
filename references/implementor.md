@@ -36,7 +36,7 @@ A verification report needs at least one recorded check. For a manual inspection
 
 ## Report
 
-The generated drafts contain every required field. Read [worker-reports.md](worker-reports.md) only when the packet records a reproduction waiver or a rejected report needs explaining. Run the packet's `draft_reports.command`. For a reproduction-waiver assignment resumed after the main agent starts verification, replace only `'--phase' 'implementation'` with `'--phase' 'verification'`, keeping the original binding path; otherwise run it verbatim. Use the returned `drafts` paths exactly, without constructing filenames.
+Run the bundled scripts without reading their source or searching for their validation rules; the generated drafts, the checklist below and `check_report` errors define the report fields. The generated drafts contain every required field. Read [worker-reports.md](worker-reports.md) only when the packet records a reproduction waiver or a rejected report needs explaining. Run the packet's `draft_reports.command`. For a reproduction-waiver assignment resumed after the main agent starts verification, replace only `'--phase' 'implementation'` with `'--phase' 'verification'`, keeping the original binding path; otherwise run it verbatim. Use the returned `drafts` paths exactly, without constructing filenames.
 
 The response includes `draft_contents` matching the saved files. Fill those returned files directly with a file-edit tool or JSON serialization; no separate read or duplicate final report is needed. Generate each draft once unless recovery requires a fresh assignment. If using a shell heredoc, quote its delimiter (`<<'EOF'`) so backticks and dollar signs remain data. Parse the JSON before returning. Return the filled `drafts` paths as the completed reports. Keep evidence inside the ticket work directory. The main agent supplies its phase token and review.
 
@@ -55,6 +55,8 @@ Before returning, check each report:
 - Verification: each agreed ID once in `criteria` with `status: "passed"`, a result and evidence paths; `checks` entries are `{command, exit_code: 0, evidence: LOG}` from verify.mjs, or empty with `no_tests_reason`; `verification_receipts` match the current assignment and code.
 - Bug or mixed: `reproduction_recheck` is `{status: "passed", result}`; only a never-reproduced bug may use `not_reproduced`, with a `runtime_unverified` exception.
 - The packet's `resolved_questions` are included.
+
+Then run the packet's `check_report.command` for each filled report, replacing `PHASE` with the report name (`implementation` or `verification`) and `DRAFT` with its path. It applies the controller's completion checks without changing workflow state. Fix the field an error names and rerun; return once each report prints `"valid": true`. A packet without `check_report` predates the command; return the reports and let the main agent's completion validate them.
 
 Never report a failing or unrun check as passing. Copy every value from `binding.json` into each report and blocker. If completion is blocked, return a blocker instead, preserving useful partial work:
 

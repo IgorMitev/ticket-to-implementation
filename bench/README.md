@@ -43,4 +43,14 @@ Limits:
 - Feature path only. Bug and waiver paths need a live browser and server, so the deterministic layer covers their declared loads.
 - Interruption and worker reassignment from the manual [agent trial](../docs/maintainer-notes.md#agent-trial) are not exercised.
 - Model behavior varies between runs. Compare medians of at least three runs, treat small deltas as inconclusive, and never trade a gate failure for a smaller context.
-- Measures Claude Code only. Kiro or another host needs its own trial.
+- `agent-trial.mjs` drives Claude Code only. Other hosts need their own trial; see below for Cursor.
+
+## Cursor and Grok trials
+
+There is no automated driver for Cursor. To compare skill versions on a Cursor model such as Grok 4.7:
+
+1. Build one fixture per variant with `createAgentTrial()` from `tests/create-agent-trial.mjs`, copying `SKILL.md`, `references/` and `scripts/` from each variant into `<root>/skill/ticket-to-implementation`.
+2. Start each agent with the same neutral prompt naming that skill directory, the `/ticket-to-implementation TRIAL-1 --out <root>/ticket` command and the repository. Do not frame the agent as an implementation worker or subagent: in one Grok run that framing led the main agent to skip delegation because it considered itself the worker.
+3. Answer as the simulated user does: the punctuation decision when asked, approval only for a pending proposal, otherwise a neutral reply.
+4. Check gates in `<root>/ticket` (`progress.json`, receipts, handoff mode) and the repository (`node --test`, `notes.txt`), and review the transcript for skill-file and script-source reads.
+5. Read usage with `node bench/cursor-usage.mjs AGENT_ID_PREFIX...`. Cursor records usage for main-agent turns only; subagent transcripts carry no token counts, so compare delegated runs on turns before implementation, and report the implementation turn as a lower bound.

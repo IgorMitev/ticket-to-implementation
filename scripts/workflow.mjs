@@ -23,6 +23,7 @@ export async function workflow(
       "request-reproduction-waiver",
       "handoff",
       "check-worker",
+      "check-report",
       "record-check",
       "complete",
       "invalidate",
@@ -70,7 +71,7 @@ if (isMain(import.meta.url)) {
     });
     if (values.help)
       console.log(
-        "Usage: node workflow.mjs configure|status|start|draft|assert|block|present|request-reproduction-waiver|handoff|check-worker|record-check|complete|invalidate ABC-123 [--out WORK_DIR --phase PHASE --input JSON_FILE --reason TEXT --format compact|full]",
+        "Usage: node workflow.mjs configure|status|start|draft|assert|block|present|request-reproduction-waiver|handoff|check-worker|check-report|record-check|complete|invalidate ABC-123 [--out WORK_DIR --phase PHASE --input JSON_FILE --reason TEXT --format compact|full]",
       );
     else {
       if (positionals.length !== 2)

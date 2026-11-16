@@ -106,6 +106,9 @@ export async function createHandoff(
   await atomic(baselinePath, baseline);
   const draftArgs = [...argv];
   draftArgs[1] = "draft";
+  // The worker appends the report phase and filled draft path; the phase is not fixed here.
+  const checkReportArgs = argv.slice(0, 5);
+  checkReportArgs[1] = "check-report";
   const workerBrief = join(skillDirectory, "references", "implementor.md");
   const returnReports = phaseName === "verification"
     ? ["verification"]
@@ -125,6 +128,7 @@ export async function createHandoff(
     // Commands are shell-quoted once; the worker brief defines when to change only the phase.
     draft_reports: { command: ["node", ...draftArgs].map(quote).join(" ") },
     check_worker: { command: ["node", ...argv].map(quote).join(" ") },
+    check_report: { command: ["node", ...checkReportArgs].map(quote).join(" ") + " --phase PHASE --input DRAFT" },
     repository_baseline: baselinePath,
     repository_summary: {
       mode: baseline.mode,

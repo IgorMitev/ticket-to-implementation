@@ -19,6 +19,8 @@
     {"id": "worker-no-user-contact", "sets": ["worker.implementor", "worker.video"], "pattern": "contact the user|not implement or contact the user"},
     {"id": "worker-binding-check", "sets": ["worker.implementor"], "pattern": "check_worker"},
     {"id": "worker-no-passing-unrun-checks", "sets": ["worker.implementor"], "pattern": "never report a failing or unrun check as passing"},
+    {"id": "worker-no-script-source", "sets": ["worker.implementor"], "pattern": "run the bundled scripts without reading their source"},
+    {"id": "worker-check-report", "sets": ["worker.implementor"], "pattern": "check_report\\.command"},
     {"id": "worker-preserve-user-edits", "sets": ["worker.implementor"], "pattern": "preserve unrelated work"},
     {"id": "override-cleanup", "sets": ["main.bug_override"], "pattern": "verify `active: false`"},
     {"id": "waiver-fresh-evidence", "sets": ["worker.implementor_waiver"], "pattern": "must be new files written in the active artifact directory"},

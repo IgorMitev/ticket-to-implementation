@@ -961,6 +961,57 @@ async function validateResult(
   };
 }
 
+// Receipts must be registered for this assignment and match the current code.
+async function validateReceipts(progress, input, workDirectory, validated) {
+  const assignment = validateBinding(progress, input, "verification");
+  const receipts = list(
+    input.verification_receipts,
+    "verification_receipts",
+  );
+  requireThat(
+    receipts.length > 0,
+    "At least one recorded verification receipt is required",
+  );
+  const current = await repositorySnapshot(
+    progress.config.repository,
+    workDirectory,
+  );
+  const logs = new Set();
+  for (const path of receipts) {
+    const proof = await proofFile(
+      path,
+      workDirectory,
+      progress.artifact_directory,
+    );
+    const saved = (assignment.checks ?? []).find(
+      (c) => c.path === proof.path && c.sha256 === proof.sha256,
+    );
+    requireThat(
+      saved && saved.repository_sha256 === current.sha256,
+      "Verification receipt is stale or unregistered; rerun checks for this code",
+    );
+    requireThat(
+      (await hashFile(saved.log.path)) === saved.log.sha256,
+      "Verification log changed",
+    );
+    validated.artifacts.push(proof, saved.log);
+    logs.add(saved.log.path);
+  }
+  for (const check of input.checks)
+    requireThat(
+      logs.has(
+        (
+          await proofFile(
+            check.evidence,
+            workDirectory,
+            progress.artifact_directory,
+          )
+        ).path,
+      ),
+      "Each check must use a recorded verification log",
+    );
+}
+
 // Freeze the full investigation and omission limitation independently of its response.
 function reproductionProposal(report) {
   const { reproduction_waiver, phase_token, ...proposal } = report;
@@ -1022,6 +1073,28 @@ export async function transition(
   } else if (action === "invalidate") {
     oneOf(phase, PHASES, "phase");
     resetFrom(progress, phase, text(input.reason, "reason"));
+  } else if (action === "check-report") {
+    // Worker self-check of a filled report: the same validation as complete, without
+    // the main agent's review fields, and without changing workflow state.
+    oneOf(phase, ["implementation", "verification"], "phase");
+    const active = workflowStatus(progress, manifest).next_phase;
+    requireThat(
+      ["implementation", "verification"].includes(active) &&
+        progress.phases[active].status === "in_progress" &&
+        (phase === active || (phase === "verification" && active === "implementation")),
+      "Reports can be checked only during active implementation or verification",
+    );
+    const assignment = validateBinding(progress, input, phase);
+    const validated = await validateResult(phase, input, progress, manifest, workDirectory);
+    if (phase === "implementation")
+      validateRepositoryChanges(
+        await json(assignment.repository_baseline),
+        await repositorySnapshot(progress.config.repository, workDirectory),
+        input.changed_files,
+        "worker report check",
+      );
+    else await validateReceipts(progress, input, workDirectory, validated);
+    drafts = { report_check: { phase, valid: true } };
   } else if (action !== "status") {
     currentPhase(progress, manifest, phase);
     const state = progress.phases[phase];
@@ -1291,55 +1364,8 @@ export async function transition(
           input.repository_review,
         );
       }
-      if (phase === "verification") {
-        const assignment = validateBinding(progress, input, phase);
-        const receipts = list(
-          input.verification_receipts,
-          "verification_receipts",
-        );
-        requireThat(
-          receipts.length > 0,
-          "At least one recorded verification receipt is required",
-        );
-        const current = await repositorySnapshot(
-          progress.config.repository,
-          workDirectory,
-        );
-        const logs = new Set();
-        for (const path of receipts) {
-          const proof = await proofFile(
-            path,
-            workDirectory,
-            progress.artifact_directory,
-          );
-          const saved = (assignment.checks ?? []).find(
-            (c) => c.path === proof.path && c.sha256 === proof.sha256,
-          );
-          requireThat(
-            saved && saved.repository_sha256 === current.sha256,
-            "Verification receipt is stale or unregistered; rerun checks for this code",
-          );
-          requireThat(
-            (await hashFile(saved.log.path)) === saved.log.sha256,
-            "Verification log changed",
-          );
-          validated.artifacts.push(proof, saved.log);
-          logs.add(saved.log.path);
-        }
-        for (const check of input.checks)
-          requireThat(
-            logs.has(
-              (
-                await proofFile(
-                  check.evidence,
-                  workDirectory,
-                  progress.artifact_directory,
-                )
-              ).path,
-            ),
-            "Each check must use a recorded verification log",
-          );
-      }
+      if (phase === "verification")
+        await validateReceipts(progress, input, workDirectory, validated);
       const resultFile = join(
         progress.artifact_directory,
         `${phase}-${randomUUID()}.json`,
