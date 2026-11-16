@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { staticMetrics, cliMetrics, compare } from '../bench/context-bench.mjs';
 import { chooseReply, summarizeEvents, summarize } from '../bench/agent-trial.mjs';
 import { projectKey, parseUsage, sumUsage } from '../bench/cursor-usage.mjs';
+import { trialUsage } from '../bench/codex-usage.mjs';
 
 const skillDir = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -97,4 +98,19 @@ test('cursor usage maps the project key and splits cached input', () => {
   const t = parseUsage('{"inputTokens":100,"outputTokens":7,"cacheReadTokens":60,"totalTokens":107,"reasoningTokens":3}');
   assert.deepEqual(t, { input: 100, cache_read: 60, input_uncached: 40, output: 7, reasoning: 3, total: 107 });
   assert.equal(sumUsage([t, t]).input_uncached, 80);
+});
+
+test('codex usage splits the main session from spawned workers', () => {
+  const tc = (input, cached, output, lastInput) => JSON.stringify({ type: 'event_msg', payload: { type: 'token_count', info: {
+    total_token_usage: { input_tokens: input, cached_input_tokens: cached, output_tokens: output, reasoning_output_tokens: 1, total_tokens: input + output },
+    last_token_usage: { input_tokens: lastInput } } } });
+  const user = text => JSON.stringify({ type: 'response_item', payload: { type: 'message', role: 'user', content: [{ type: 'input_text', text }] } });
+  const sessions = [
+    { file: 'a', text: [user('# AGENTS.md'), user('/ticket-to-implementation TRIAL-1 --out /tmp/trial-X/ticket'), tc(100, 60, 5, 40), tc(300, 200, 9, 70)].join('\n') },
+    { file: 'b', text: [user('Implement /tmp/trial-X/ticket/handoff.json'), tc(50, 10, 3, 50)].join('\n') },
+    { file: 'c', text: [user('/ticket-to-implementation TRIAL-1 --out /tmp/trial-Y/ticket'), tc(999, 0, 1, 1)].join('\n') },
+  ];
+  const r = trialUsage(sessions, 'trial-X');
+  assert.deepEqual([r.main.sessions, r.main.requests, r.main.peak_context, r.main.input_uncached, r.main.total], [1, 2, 70, 100, 309]);
+  assert.deepEqual([r.worker.sessions, r.worker.cache_read, r.total.total], [1, 10, 362]);
 });
